@@ -14,7 +14,7 @@ uint8_t  Finger_SleepFlag = 0;
 ****************************************************************************/
 void Finger_SoftwareSerial_Init(void)
 {
-	Serial2.begin(115200);	
+	Serial2.begin(19200);	
 }
 
 /***************************************************************************
@@ -23,7 +23,7 @@ void Finger_SoftwareSerial_Init(void)
 ****************************************************************************/
 void  TxByte(uint8_t temp)
 {
-	Serial2.write(temp);    
+	Serial2.write(temp);
 }
 
 /***************************************************************************
@@ -54,7 +54,7 @@ uint8_t TxAndRxCmd(uint8_t Scnt, uint8_t Rcnt, uint16_t Nms)
 	 
 	 memset(finger_RxBuf,0,sizeof(finger_RxBuf));   ////////
  
-	 Serial2.flush();  /////
+	 serialFlush();  /////
 	 
 	 // Receive time out: Nms
 	time_before = millis();	 
@@ -470,3 +470,9 @@ void Auto_Verify_Finger(void)
 		}
 	}
 }
+
+void serialFlush(){
+  while(Serial2.available() > 0) {
+    char t = Serial2.read();
+  }
+}   

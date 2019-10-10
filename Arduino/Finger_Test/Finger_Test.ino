@@ -32,9 +32,3 @@ void loop()
 		Auto_Verify_Finger();
 	}	
 }
-
-
-
-
-
-
