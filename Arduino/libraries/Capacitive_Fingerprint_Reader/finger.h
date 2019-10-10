@@ -66,8 +66,6 @@ uint8_t GetTimeOut(void);
 void Finger_Wait_Until_OK(void);	
 void Analysis_PC_Command(void);
 void Auto_Verify_Finger(void);
-void Fingerprintsetup(void);
-void Fingerprintloop(void);
 
 #endif
 

@@ -19,9 +19,17 @@ RST             D9           D8
 /* Define the DIO used for the SDA (SS) and RST (reset) pins. */
 #define SDA_DIO 9
 #define RESET_DIO 8
+#define Finger_RST_Pin 24
+#define Finger_WAKE_Pin 23
+
 /* Create an instance of the RFID library */
 RFID RC522(SDA_DIO, RESET_DIO); 
 // read a line from user into buffer, return char count
+
+void Fingerprintsetup(void);
+void Fingerprintloop(void);
+void RFIDsetup(void);
+void RFIDloop(void);
 
 char choice;
 
@@ -32,13 +40,15 @@ void setup()
  {
     ; // wait for serial port to connect. Needed for native USB port only
  }
- RFIDsetup();
  Fingerprintsetup();
+ RFIDsetup();
 }
-void loop(){
-Serial.println("Which sensor do you want to use?");
-Serial.println("1 for RFID");
-Serial.println("2 for Fingerprint");
+
+void loop()
+{
+  Serial.println("Which sensor do you want to use?");
+  Serial.println("1 for RFID");
+  Serial.println("2 for Fingerprint");
 
   while(Serial.available()<1){
 
@@ -47,15 +57,12 @@ Serial.println("2 for Fingerprint");
     choice = Serial.read();
     Serial.print("You chose: ");
     Serial.println(choice);
-    Serial.println("Input ~ to pick again.");
+    Serial.println("Press the RST button to pick again.");
     if((char)choice == '1' )
     {
       while(1)
       {
         RFIDloop();
-        choice = Serial.read();
-        if((char)choice == '~')
-          break;
       }
     }
     else if((char)choice == '2')
@@ -63,13 +70,32 @@ Serial.println("2 for Fingerprint");
       while(1)
       {
         Fingerprintloop();
-        choice = Serial.read();
-        if((char)choice == '~')
-          break;
       }
     }
 }
 
+void Fingerprintsetup()
+{
+  pinMode(Finger_RST_Pin  , OUTPUT);
+  digitalWrite(Finger_RST_Pin , LOW);
+  delay(100);
+  digitalWrite(Finger_RST_Pin , HIGH);
+  pinMode(Finger_WAKE_Pin , INPUT);
+  Finger_SoftwareSerial_Init(); 
+  Finger_Wait_Until_OK();
+}
+
+void Fingerprintloop()
+{   
+  Analysis_PC_Command();
+  
+  // If in sleep mode, turn on the auto wake-up function of the finger, 
+  //begin to check if the finger is pressed, and wake up the module and match it
+  if(Finger_SleepFlag == 1)
+  {
+    Auto_Verify_Finger();
+  }
+}
 
 void RFIDsetup()
 { 
@@ -96,27 +122,4 @@ void RFIDloop()
     Serial.println();
   }
   delay(1000);
-}
-
-void Fingerprintsetup()
-{
-  pinMode(Finger_RST_Pin  , OUTPUT);
-  digitalWrite(Finger_RST_Pin , LOW);
-  delay(100);
-  digitalWrite(Finger_RST_Pin , HIGH);
-  pinMode(Finger_WAKE_Pin , INPUT);
-  Finger_SoftwareSerial_Init(); 
-  Finger_Wait_Until_OK();
-}
-
-void Fingerprintloop()
-{
-  Analysis_PC_Command();
-  
-  // If in sleep mode, turn on the auto wake-up function of the finger, 
-  //begin to check if the finger is pressed, and wake up the module and match it
-  if(Finger_SleepFlag == 1)
-  {
-    Auto_Verify_Finger();
-  }
 }

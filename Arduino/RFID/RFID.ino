@@ -23,7 +23,7 @@ RFID RC522(SDA_DIO, RESET_DIO);
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   /* Enable the SPI interface */
   SPI.begin();
   /* Initialise the RFID reader */
