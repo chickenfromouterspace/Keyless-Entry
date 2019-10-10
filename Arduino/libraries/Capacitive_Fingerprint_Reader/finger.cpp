@@ -9,16 +9,12 @@ uint8_t finger_TxBuf[9];
 
 uint8_t  Finger_SleepFlag = 0;
 
-
-SoftwareSerial mySerial(10, 11); // RX, TX		
-
-
 /***************************************************************************
 * @brief      initialize the SoftwareSerial to communicate with Fingerprint module
 ****************************************************************************/
 void Finger_SoftwareSerial_Init(void)
 {
-	mySerial.begin(19200);	
+	Serial2.begin(115200);	
 }
 
 /***************************************************************************
@@ -27,7 +23,7 @@ void Finger_SoftwareSerial_Init(void)
 ****************************************************************************/
 void  TxByte(uint8_t temp)
 {
-	mySerial.write(temp);    
+	Serial2.write(temp);    
 }
 
 /***************************************************************************
@@ -58,16 +54,16 @@ uint8_t TxAndRxCmd(uint8_t Scnt, uint8_t Rcnt, uint16_t Nms)
 	 
 	 memset(finger_RxBuf,0,sizeof(finger_RxBuf));   ////////
  
-	 mySerial.flush();  /////
+	 Serial2.flush();  /////
 	 
 	 // Receive time out: Nms
 	time_before = millis();	 
 	 do
 	 {
 		overflow_Flag = 0;
-		if(mySerial.available())
+		if(Serial2.available())
 		{
-			finger_RxBuf[uart_RxCount++] = mySerial.read();
+			finger_RxBuf[uart_RxCount++] = Serial2.read();
 		}
 		time_after = millis();	
 		if(time_before > time_after)   //if overflow (go back to zero)
