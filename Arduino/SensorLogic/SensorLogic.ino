@@ -120,13 +120,10 @@ void RFIDloop()
     //Serial.print(RC522.serNum[i],DEC);
     Serial.print(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
     }
-    str = Serial.readStringUntil('\n');
     
-    Serial.println(str);
-    if(str == "153128110162213");
-    {
-      Servoloop();
-    }
+    Serial.println();
+    Serial.println();
+    Servoloop();
   }
   delay(1000);
 }
