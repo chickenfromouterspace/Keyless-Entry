@@ -16,12 +16,10 @@ RST             D9           D8
 #include <RFID.h>
 #include <SoftwareSerial.h>
 #include "finger.h"
+#include <Servo.h>
 /* Define the DIO used for the SDA (SS) and RST (reset) pins. */
 #define SDA_DIO 9
 #define RESET_DIO 8
-#define Finger_RST_Pin 24
-#define Finger_WAKE_Pin 23
-
 /* Create an instance of the RFID library */
 RFID RC522(SDA_DIO, RESET_DIO); 
 // read a line from user into buffer, return char count
@@ -30,7 +28,12 @@ void Fingerprintsetup(void);
 void Fingerprintloop(void);
 void RFIDsetup(void);
 void RFIDloop(void);
+void Servoloop(void);
+void Servosetup(void);
 
+Servo myservo;
+
+int pos = 90;
 char choice;
 
 void setup()
@@ -50,11 +53,9 @@ void loop()
   Serial.println("1 for RFID");
   Serial.println("2 for Fingerprint");
 
-  while(Serial.available()<1){
-
-  }
+  
  
-    choice = Serial.read();
+    choice = '1';
     Serial.print("You chose: ");
     Serial.println(choice);
     Serial.println("Press the RST button to pick again.");
@@ -118,8 +119,35 @@ void RFIDloop()
     Serial.print(RC522.serNum[i],DEC);
     //Serial.print(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
     }
+    
     Serial.println();
     Serial.println();
+    Servoloop();
   }
   delay(1000);
+}
+
+void Servosetup()
+{
+  myservo.attach(7);
+  myservo.write(pos);
+}
+
+void Servoloop()
+{
+  myservo.attach(7);
+  for(pos = 0; pos <= 180; pos += 1)
+  {
+    myservo.write(pos);
+    Serial.println(myservo.read());
+    delay(100);
+  }
+  for(pos = 180; pos >= 0; pos -= 1)
+  {
+    myservo.write(pos);
+    Serial.println(myservo.read());
+    delay(100);
+  }
+  myservo.write(90);
+  myservo.detach();
 }
