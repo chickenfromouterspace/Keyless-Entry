@@ -34,6 +34,7 @@ Servo myservo;
 
 int pos = 90;
 char choice;
+String str = "Hello";
 
 void setup()
 {
@@ -107,6 +108,7 @@ void RFIDsetup()
 
 void RFIDloop()
 {
+  Serial.println(str);
   /* Has a card been detected? */
   if (RC522.isCard())
   {
@@ -118,10 +120,13 @@ void RFIDloop()
     Serial.print(RC522.serNum[i],DEC);
     //Serial.print(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
     }
+    str = Serial.readStringUntil('\n');
     
-    Serial.println();
-    Serial.println();
-    Servoloop();
+    Serial.println(str);
+    if(str == "153128110162213");
+    {
+      Servoloop();
+    }
   }
   delay(1000);
 }
@@ -129,17 +134,7 @@ void RFIDloop()
 void Servoloop()
 {
   myservo.attach(7);
-  for(pos = 0; pos <= 180; pos += 1)
-  {
-    myservo.write(pos);
-    Serial.println(myservo.read());
-    delay(100);
-  }
-  for(pos = 180; pos >= 0; pos -= 1)
-  {
-    myservo.write(pos);
-    Serial.println(myservo.read());
-    delay(100);
-  }
+  myservo.write(0);
+  delay(1000);
   myservo.detach();
 }
