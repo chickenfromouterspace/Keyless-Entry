@@ -117,8 +117,8 @@ void RFIDloop()
     Serial.println("Card detected:");
     for(int i=0;i<5;i++)
     {
-    Serial.print(RC522.serNum[i],DEC);
-    //Serial.print(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
+    //Serial.print(RC522.serNum[i],DEC);
+    Serial.print(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
     }
     str = Serial.readStringUntil('\n');
     
