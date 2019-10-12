@@ -148,6 +148,7 @@ void RFIDloop()
       Serial.println(usr3[i], HEX);
       Serial.println(usr3[i], BIN);
     }
+<<<<<<< HEAD
     Serial.println();
 
     match = 0;
@@ -163,6 +164,12 @@ void RFIDloop()
 
     Serial.println(match);
     match = 0;
+=======
+    
+    Serial.println();
+    Serial.println();
+    Servoloop();
+>>>>>>> cfecc4339d844549fcc8731e0488fa28e74304b4
   }
   delay(1000);
 }
