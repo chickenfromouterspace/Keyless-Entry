@@ -14,7 +14,6 @@ RST             D9           D8
 #include <SPI.h>
 /* Include the RFID library */
 #include <RFID.h>
-#include <SoftwareSerial.h>
 #include "finger.h"
 #include <Servo.h>
 /* Define the DIO used for the SDA (SS) and RST (reset) pins. */
@@ -28,13 +27,19 @@ void Fingerprintsetup(void);
 void Fingerprintloop(void);
 void RFIDsetup(void);
 void RFIDloop(void);
-void Servoloop(void);
+void Servoloop(int dir);
+void Bluetoothsetup(void);
+void Bluetoothloop(void);
 
 Servo myservo;
 
 int pos = 90;
 char choice;
-String str = "Hello";
+String str = String(11);
+unsigned char usr0[5] = {0xA2, 0x7D, 0x51, 0x1C, 0x92},
+              usr1[5] = {0x92, 0xA2, 0x3C, 0x1C, 0x10}, 
+              usr2[5] = {0x99, 0x80, 0x6E, 0xA2, 0xD5}, 
+              usr3[5] = {0x49, 0x95, 0x0, 0xA3, 0x7F};
 
 void setup()
 {
@@ -45,6 +50,7 @@ void setup()
  }
  Fingerprintsetup();
  RFIDsetup();
+ Bluetoothsetup();
 }
 
 void loop()
@@ -71,6 +77,13 @@ void loop()
       while(1)
       {
         Fingerprintloop();
+      }
+    }
+    else if((char)choice == '3')
+    {
+      while(1)
+      {
+        Bluetoothloop();
       }
     }
 }
@@ -108,7 +121,8 @@ void RFIDsetup()
 
 void RFIDloop()
 {
-  Serial.println(str);
+  unsigned char buff[6] = {'\0'};
+  int match;
   /* Has a card been detected? */
   if (RC522.isCard())
   {
@@ -117,24 +131,69 @@ void RFIDloop()
     Serial.println("Card detected:");
     for(int i=0;i<5;i++)
     {
-    //Serial.print(RC522.serNum[i],DEC);
-    Serial.print(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
+      //Serial.print(RC522.serNum[i],DEC);
+      Serial1.println(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
+      buff[i] = RC522.serNum[i];
     }
-    str = Serial.readStringUntil('\n');
-    
-    Serial.println(str);
-    if(str == "153128110162213");
+    str = Serial1.readStringUntil('\n');
+    Serial.println();
+    for(int i=0;i<5;i++)
     {
-      Servoloop();
+      Serial.println(buff[i], HEX);
+      Serial.println(buff[i], BIN);
     }
+    Serial.println();
+    for(int i=0;i<5;i++)
+    {
+      Serial.println(usr3[i], HEX);
+      Serial.println(usr3[i], BIN);
+    }
+    Serial.println();
+
+    match = 0;
+    for(int i=0;i<5;i++)
+    {
+      if(buff[i] != usr3[i])
+        break;
+      else
+        match++;
+    }
+    if(match == 5)
+      Servoloop(0);
+
+    Serial.println(match);
+    match = 0;
   }
   delay(1000);
 }
 
-void Servoloop()
+void Servoloop(int dir)
 {
   myservo.attach(7);
-  myservo.write(0);
+  myservo.write(dir);
   delay(1000);
   myservo.detach();
+}
+
+void Bluetoothsetup()
+{
+  Serial3.begin(9600);
+  while(!Serial);
+  Serial.println("AT commands: okay");
+}
+
+void Bluetoothloop()
+{
+  //read from the HM-10 and print in the Serial
+  if(Serial3.available())
+  {
+    str = Serial3.readStringUntil('\n');
+    Serial.println(str.length());
+    if(str.compareTo("255,255,255") == 0)
+      Servoloop(0);
+    if(str.compareTo("0,0,0") == 0)
+      Servoloop(180);
+  }
+  if(Serial.available())
+    Serial3.write(Serial.read());
 }
