@@ -28,7 +28,7 @@ void Fingerprintsetup(void);
 void Fingerprintloop(void);
 void RFIDsetup(void);
 void RFIDloop(void);
-void Servosetup(void);
+void Servoloop(void);
 
 Servo myservo;
 
