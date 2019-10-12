@@ -28,7 +28,6 @@ void Fingerprintsetup(void);
 void Fingerprintloop(void);
 void RFIDsetup(void);
 void RFIDloop(void);
-void Servoloop(void);
 void Servosetup(void);
 
 Servo myservo;
@@ -127,12 +126,6 @@ void RFIDloop()
   delay(1000);
 }
 
-void Servosetup()
-{
-  myservo.attach(7);
-  myservo.write(pos);
-}
-
 void Servoloop()
 {
   myservo.attach(7);
@@ -148,6 +141,5 @@ void Servoloop()
     Serial.println(myservo.read());
     delay(100);
   }
-  myservo.write(90);
   myservo.detach();
 }
