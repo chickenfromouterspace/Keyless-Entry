@@ -27,14 +27,17 @@ void setup()
 {
   pinMode(unlock_motor, OUTPUT);
   pinMode(incorrect_pswd, OUTPUT);
-  liquid_crystal_display.begin(16,2);
-  liquid_crystal_display.print("UCF Knights");
-  liquid_crystal_display.setCursor(0,1);
-  liquid_crystal_display.print("Keyless Entry");
+  Serial.begin(115200);
+  Serial.println("Keyless Entry");
+  //liquid_crystal_display.begin(16,2);
+  //liquid_crystal_display.print("UCF Knights");
+  //liquid_crystal_display.setCursor(0,1);
+  //liquid_crystal_display.print("Keyless Entry");
   delay(2000);
-  liquid_crystal_display.clear();
-  liquid_crystal_display.print("Enter Password");
-  liquid_crystal_display.setCursor(0,1);
+  //liquid_crystal_display.clear();
+  Serial.println("Enter Password");
+  //liquid_crystal_display.print("Enter Password");
+  //liquid_crystal_display.setCursor(0,1);
   initialpassword();
 }
 
@@ -48,7 +51,8 @@ void loop()
   if (key_pressed)
   {
     password[i++]=key_pressed;
-    liquid_crystal_display.print(key_pressed);
+    Serial.println(key_pressed);
+    //liquid_crystal_display.print(key_pressed);
       }
   if(i==4)
   {
@@ -57,30 +61,36 @@ void loop()
       initial_password[j]=EEPROM.read(j);
     if(!(strncmp(password, initial_password,4)))
     {
-      liquid_crystal_display.clear();
-      liquid_crystal_display.print("Pass Accepted");
+      //liquid_crystal_display.clear();
+      Serial.println("Password Accepted");
+      //liquid_crystal_display.print("Pass Accepted");
       digitalWrite(unlock_motor, HIGH);
       delay(2000);
-      liquid_crystal_display.setCursor(0,1);
-      liquid_crystal_display.print("Pres # to change");
+      //liquid_crystal_display.setCursor(0,1);
+      Serial.println("Press # to change");
+      //liquid_crystal_display.print("Pres # to change");
       delay(2000);
-      liquid_crystal_display.clear();
-      liquid_crystal_display.print("Enter Password:");
-      liquid_crystal_display.setCursor(0,1);
+      //liquid_crystal_display.clear();
+      Serial.println("Enter Password");
+      //liquid_crystal_display.print("Enter Password:");
+      //liquid_crystal_display.setCursor(0,1);
       i=0;
     }
     else
     {
       digitalWrite(unlock_motor, LOW);
-      liquid_crystal_display.clear();
-      liquid_crystal_display.print("Wrong Password");
+      //liquid_crystal_display.clear();
+      Serial.println("Wrong Password");
+      //liquid_crystal_display.print("Wrong Password");
       digitalWrite(incorrect_pswd, HIGH);
-      liquid_crystal_display.setCursor(0,1);
-      liquid_crystal_display.print("Pres # to Change");
+      //liquid_crystal_display.setCursor(0,1);
+      Serial.println("Press # to change");
+      //liquid_crystal_display.print("Pres # to Change");
       delay(2000);
-      liquid_crystal_display.clear();
-      liquid_crystal_display.print("Enter Password");
-      liquid_crystal_display.setCursor(0,1);
+      //liquid_crystal_display.clear();
+      Serial.println("Enter Password");
+      //liquid_crystal_display.print("Enter Password");
+      //liquid_crystal_display.setCursor(0,1);
       i=0;
     }
   }
@@ -89,51 +99,59 @@ void loop()
 void change()
 {
   int j=0;
-  liquid_crystal_display.clear();
-  liquid_crystal_display.print("Current Password");
-  liquid_crystal_display.setCursor(0,1);
+  //liquid_crystal_display.clear();
+  Serial.println("Current Password");
+  //liquid_crystal_display.print("Current Password");
+  //liquid_crystal_display.setCursor(0,1);
   while(j<4)
   {
     char key=keypad_key.getKey();
     if(key)
     {
       new_password[j++]=key;
-      liquid_crystal_display.print(key);
+      Serial.println(key);
+      //liquid_crystal_display.print(key);
     }
     key=0;
   }
   delay(500);
   if((strncmp(new_password, initial_password, 4)))
   {
-    liquid_crystal_display.clear();
-    liquid_crystal_display.print("Wrong Password");
-    liquid_crystal_display.setCursor(0,1);
-    liquid_crystal_display.print("Try Again");
+    //liquid_crystal_display.clear();
+    Serial.println("Wrong Password");
+    //liquid_crystal_display.print("Wrong Password");
+    //liquid_crystal_display.setCursor(0,1);
+    Serial.println("Try Again");
+    //liquid_crystal_display.print("Try Again");
     delay(1000);
   }
   else
   {
     j=0;
-    liquid_crystal_display.clear();
-    liquid_crystal_display.print("New Password:");
-    liquid_crystal_display.setCursor(0,1);
+    //liquid_crystal_display.clear();
+    Serial.println("New Password");
+    //liquid_crystal_display.print("New Password:");
+    //liquid_crystal_display.setCursor(0,1);
     while(j<4)
     {
       char key=keypad_key.getKey();
       if(key)
       {
         initial_password[j]=key;
-        liquid_crystal_display.print(key);
+        Serial.println(key);
+        //liquid_crystal_display.print(key);
         EEPROM.write(j,key);
         j++;
       }
     }
-    liquid_crystal_display.print("Pass Changed");
+    Serial.println("Password Changed");
+    //liquid_crystal_display.print("Pass Changed");
     delay(1000);
   }
-  liquid_crystal_display.clear();
-  liquid_crystal_display.print("Enter Password");
-  liquid_crystal_display.setCursor(0,1);
+  //liquid_crystal_display.clear();
+  Serial.println("Enter Password");
+  //liquid_crystal_display.print("Enter Password");
+  //liquid_crystal_display.setCursor(0,1);
   key_pressed=0;
 }
 
