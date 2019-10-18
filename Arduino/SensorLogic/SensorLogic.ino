@@ -26,6 +26,8 @@ RST             D9           D8
 /* Define the DIO used for the SDA (SS) and RST (reset) pins. */
 #define SDA_DIO 9
 #define RESET_DIO 8
+#define  Finger_RST_Pin     24
+#define  Finger_WAKE_Pin    23
 /* Create an instance of the RFID library */
 RFID RC522(SDA_DIO, RESET_DIO); 
 // read a line from user into buffer, return char count
@@ -310,7 +312,8 @@ void change()
   key_pressed=0;
 }
 
-void initialpassword(){
+void initialpassword()
+{
   for(int j=0;j<4;j++)
     EEPROM.write(j, j+49);
   for(int j=0;j<4;j++)
