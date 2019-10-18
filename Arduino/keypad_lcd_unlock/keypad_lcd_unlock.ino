@@ -18,7 +18,7 @@ char hexaKeys[rows][columns] = {
   {'*','0','#'}
 };
 
-byte row_pins[rows] = {A1, 2, A5, A3};
+byte row_pins[rows] = {A1, A6, A5, A3};
 byte column_pins[columns] = {A2, A0, A4};
 
 Keypad keypad_key = Keypad( makeKeymap(hexaKeys), row_pins, column_pins, rows, columns);
