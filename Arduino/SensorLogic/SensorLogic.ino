@@ -26,8 +26,9 @@ RST             D9           D8
 /* Define the DIO used for the SDA (SS) and RST (reset) pins. */
 #define SDA_DIO 9
 #define RESET_DIO 8
-#define  Finger_RST_Pin     24
-#define  Finger_WAKE_Pin    23
+#define Finger_RST_Pin 24
+#define Finger_WAKE_Pin 23
+#define Servo_Pin 7
 /* Create an instance of the RFID library */
 RFID RC522(SDA_DIO, RESET_DIO); 
 // read a line from user into buffer, return char count
@@ -169,7 +170,7 @@ void RFIDloop()
 
 void Servoloop()
 {
-  myservo.attach(7);
+  myservo.attach(Servo_Pin);
   myservo.write(0);
   delay(1000);
   myservo.detach();
