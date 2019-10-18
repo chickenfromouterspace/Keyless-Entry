@@ -27,7 +27,7 @@ RST             D9           D8
 #define SDA_DIO 9
 #define RESET_DIO 8
 #define Finger_RST_Pin 24
-#define Finger_WAKE_Pin 23
+#define Finger_WAKE_Pin 25
 #define Servo_Pin 7
 /* Create an instance of the RFID library */
 RFID RC522(SDA_DIO, RESET_DIO); 
@@ -88,7 +88,7 @@ void loop()
   Serial.println("3 for Keypad");
   
  
-    choice = '3';
+    choice = '1';
     Serial.print("You chose: ");
     Serial.println(choice);
     Serial.println("Press the RST button to pick again.");
@@ -111,6 +111,13 @@ void loop()
       while(1)
       {
         Keypadloop();
+      }
+    }
+    else if((char)choice == '4')
+    {
+      while(1)
+      {
+        Servoloop();
       }
     }
 }
@@ -148,7 +155,6 @@ void RFIDsetup()
 
 void RFIDloop()
 {
-  Serial.println(str);
   /* Has a card been detected? */
   if (RC522.isCard())
   {

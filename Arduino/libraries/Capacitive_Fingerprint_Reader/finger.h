@@ -14,6 +14,9 @@
 #define TRUE  1
 #define FALSE 0
 
+#define Finger_RST_Pin 24
+#define Finger_WAKE_Pin 25
+
 // Basic response message definition
 #define ACK_SUCCESS       0x00
 #define ACK_FAIL          0x01

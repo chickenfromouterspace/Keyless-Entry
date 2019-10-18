@@ -1,8 +1,8 @@
 #include <SoftwareSerial.h>
 #include "finger.h"
 
-#define  Finger_RST_Pin     24
-#define  Finger_WAKE_Pin    23
+#define Finger_RST_Pin 24
+#define Finger_WAKE_Pin 25
 
 void setup() 
 {
