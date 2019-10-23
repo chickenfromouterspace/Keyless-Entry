@@ -10,6 +10,8 @@ GND             GND          GND
 RST             D9           D8
 3.3V            3.3V         3.3V
 */
+//#define  Finger_RST_Pin     24
+//#define  Finger_WAKE_Pin    23
 /* Include the standard Arduino SPI library */
 #include <SPI.h>
 /* Include the RFID library */
