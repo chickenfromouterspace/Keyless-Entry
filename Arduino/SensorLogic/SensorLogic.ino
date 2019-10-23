@@ -22,7 +22,6 @@ RST             D9           D8
 #include <Servo.h>
 #include "Keypad.h"
 #include "EEPROM.h"
-#include "LiquidCrystal.h"
 /* Define the DIO used for the SDA (SS) and RST (reset) pins. */
 #define SDA_DIO 9
 #define RESET_DIO 8
@@ -40,7 +39,6 @@ void Bluetoothloop(void);
 void Keypadsetup(void);
 void Keypadloop(void);
 
-LiquidCrystal liquid_crystal_display(9,8,7,6,5,4);
 char password[4];
 char initial_password[4],new_password[4];
 int i=0;
@@ -164,8 +162,6 @@ void RFIDsetup()
 
 void RFIDloop()
 {
-  unsigned char buff[6] = {'\0'};
-  int match;
   /* Has a card been detected? */
   if (RC522.isCard())
   {
@@ -174,38 +170,11 @@ void RFIDloop()
     Serial.println("Card detected:");
     for(int i=0;i<5;i++)
     {
-      //Serial.print(RC522.serNum[i],DEC);
-      Serial1.println(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
-      buff[i] = RC522.serNum[i];
-    }
-    str = Serial1.readStringUntil('\n');
-    Serial.println();
-    for(int i=0;i<5;i++)
-    {
-      Serial.println(buff[i], HEX);
-      Serial.println(buff[i], BIN);
+    Serial.print(RC522.serNum[i],DEC);
+    //Serial.print(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
     }
     Serial.println();
-    for(int i=0;i<5;i++)
-    {
-      Serial.println(usr3[i], HEX);
-      Serial.println(usr3[i], BIN);
-    }
     Serial.println();
-
-    match = 0;
-    for(int i=0;i<5;i++)
-    {
-      if(buff[i] != usr3[i])
-        break;
-      else
-        match++;
-    }
-    if(match == 5)
-      Servoloop(0);
-
-    Serial.println(match);
-    match = 0;
   }
   delay(1000);
 }
