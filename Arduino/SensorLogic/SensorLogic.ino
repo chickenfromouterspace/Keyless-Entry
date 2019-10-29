@@ -38,6 +38,8 @@ void Bluetoothsetup(void);
 void Bluetoothloop(void);
 void Keypadsetup(void);
 void Keypadloop(void);
+void WiFisetup(void);
+void WiFiloop(void);
 
 char password[4];
 char initial_password[4],new_password[4];
@@ -80,6 +82,7 @@ void setup()
  RFIDsetup();
  Bluetoothsetup();
  Keypadsetup();
+ WiFisetup();
 }
 
 void loop()
@@ -89,6 +92,7 @@ void loop()
   Serial.println("2 for Fingerprint");
   Serial.println("3 for Bluetooth");
   Serial.println("4 for Keypad");
+  Serial.println("5 for WiFi");
     
   while(Serial.available()<1){
 
@@ -125,6 +129,13 @@ void loop()
       while(1)
       {
         Keypadloop();
+      }
+    }
+    else if((char)choice == '5')
+    {
+      while(1)
+      {
+        WiFiloop();
       }
     }
 }
@@ -173,6 +184,7 @@ void RFIDloop()
     Serial.print(RC522.serNum[i],DEC);
     //Serial.print(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
     }
+    Servoloop(0);
     Serial.println();
     Serial.println();
   }
@@ -351,4 +363,30 @@ void initialpassword(){
     EEPROM.write(j, j+49);
   for(int j=0;j<4;j++)
     initial_password[j]=EEPROM.read(j);
+}
+
+void WiFisetup()
+{
+  Serial1.begin(115200);
+}
+
+void WiFiloop()
+{
+  char x;
+  if(Serial1.available())
+  {
+    x = Serial1.read();
+    Serial.println(x);
+    if(x == '1')
+    {
+      myservo.attach(7);
+      Serial1.end();
+      myservo.write(0);
+      delay(1000);
+      Serial.println("Running.");
+      myservo.detach();
+      x = 0;
+      Serial1.begin(115200);
+    }
+  }
 }
