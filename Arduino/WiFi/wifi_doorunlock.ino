@@ -19,6 +19,9 @@ char pass[] = "famousbird589";
 #define BLYNK_GREEN     "#23C48E"
 #define BLYNK_RED       "#D3435C"
 
+char doorUnlocked[15] = "Door Unlocked";
+char doorLocked[15] = "Door Locked";
+
 Servo servo1;
 Servo servo2;
 int doorState; // 1 for locked, 0  for unlocked
@@ -34,9 +37,14 @@ void loop()
 
 void setup()
 {
-  Serial.begin(9600);
-  Blynk.begin(auth, ssid, pass);
+  Serial.begin(115200);
+  
   doorState=1;
+  while (!Serial)
+ {
+    ; // wait for serial port to connect. Needed for native USB port only
+ }
+ Blynk.begin(auth, ssid, pass);
   checklock_state();
 }
 
@@ -51,12 +59,15 @@ void checklock_state()
   led.on();
 }
 
+
+
 BLYNK_WRITE(V0) 
   {
     int pinValue = param.asInt();
     if ((pinValue == 1) && (doorState==1)) // if Button sends 1 and door is locked
     {
       doorState=0;          //set door to unlocked, blocking continuous unlocking commands
+      Serial.write("0");
       Unlock_Door();              // start the function 
       
     }
@@ -66,7 +77,7 @@ BLYNK_WRITE(V0)
 void Unlock_Door() 
 {
   
-  Serial.println("Unlocking Door");
+  Serial.write("Unlocking Door \n");
   servo1.attach(4);  // attaches the servo on GIO2 to the servo object
   int pos1;
 
@@ -77,17 +88,14 @@ void Unlock_Door()
     servo1.write(pos1);              // tell servo to go to position in variable 'pos'
     delay(15);                       // waits 15ms for the servo to reach the position
   }
-  //change LED color
-  Blynk.setProperty(LED, "color", BLYNK_GREEN);
-
-  //change LED label
-  Blynk.setProperty(LED, "label", "Door Unlocked");
+  Door_is_Unlocked();
   servo1.detach();
   timer.setTimeout(5000L, Auto_Lock);
 }
 
 void Auto_Lock() 
 {
+  Serial.write("Locking Door \n");
   servo2.attach(4);  // attaches the servo on GIO2 to the servo object
   int pos2;
    for (pos2 = 160; pos2 >= 90; pos2 -= 1) 
@@ -98,10 +106,27 @@ void Auto_Lock()
     delay(15);                       // waits 15ms for the servo to reach the position
   }
   servo2.detach();
-  doorState=1;
+  Door_is_Locked();
+}
+
+void Door_is_Locked ()
+{
+  Serial.write(doorLocked,15);
+   doorState=1;
+   Serial.write("1");
   //change LED color
   Blynk.setProperty(LED, "color", BLYNK_RED);
 
   //change LED label
   Blynk.setProperty(LED, "label", "Door Locked");
+}
+
+void Door_is_Unlocked()
+{
+  //change LED color
+  Serial.write(doorUnlocked,15);
+  Blynk.setProperty(LED, "color", BLYNK_GREEN);
+
+  //change LED label
+  Blynk.setProperty(LED, "label", "Door Unlocked");
 }
