@@ -1,3 +1,4 @@
+
 /*
 PINOUT:
 RC522 MODULE    Uno/Nano     MEGA
@@ -23,6 +24,7 @@ RST             D9           D8
 #include "Keypad.h"
 #include "EEPROM.h"
 #include "LiquidCrystal.h"
+#include "Atmega_servo_response.h"
 /* Define the DIO used for the SDA (SS) and RST (reset) pins. */
 #define SDA_DIO 9
 #define RESET_DIO 8
@@ -59,6 +61,9 @@ char hexaKeys[rows][columns] = {
 byte row_pins[rows] = {A1, A6, A5, A3};
 byte column_pins[columns] = {A2, A0, A4};
 
+unsigned char buff[6] = {'\0'};
+int match;
+
 Keypad keypad_key = Keypad( makeKeymap(hexaKeys), row_pins, column_pins, rows, columns);
 
 Servo myservo;
@@ -82,6 +87,7 @@ void setup()
  RFIDsetup();
  Bluetoothsetup();
  Keypadsetup();
+ Wifisetup();
 }
 
 void loop()
@@ -129,6 +135,13 @@ void loop()
         Keypadloop();
       }
     }
+    else if((char)choice == '5')
+    {
+      while(1)
+      {
+        Wifiloop();
+      }
+    }
 }
 
 void Fingerprintsetup()
@@ -164,8 +177,7 @@ void RFIDsetup()
 
 void RFIDloop()
 {
-  unsigned char buff[6] = {'\0'};
-  int match;
+  buff[6] = {'\0'};
   /* Has a card been detected? */
   if (RC522.isCard())
   {
@@ -207,6 +219,12 @@ void RFIDloop()
     Serial.println(match);
     match = 0;
   }
+  Serial.print(buff[0]);
+  Serial.print(buff[1]);
+  Serial.print(buff[2]);
+  Serial.print(buff[3]);
+  Serial.print(buff[4]);
+  Serial.println(buff[5]);
   delay(1000);
 }
 
