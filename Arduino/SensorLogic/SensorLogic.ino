@@ -31,6 +31,7 @@ RFID RC522(SDA_DIO, RESET_DIO);
 
 void Fingerprintsetup(void);
 void Fingerprintloop(void);
+void FingerprintSleepMode(void);
 void RFIDsetup(void);
 void RFIDloop(void);
 void Servoloop(int dir);
@@ -164,30 +165,7 @@ void Fingerprintloop()
     delay(20);      
     if(digitalRead(Finger_WAKE_Pin) == HIGH)   
     {
-      digitalWrite(Finger_RST_Pin , HIGH);    // Pull up the RST to start the module and start matching the fingers
-      delay(1000);   // Wait for module to start
-          
-      Serial.println("Waiting Finger......Please try to place the center of the fingerprint flat to sensor !");
-      switch(VerifyUser())
-      {
-        case ACK_SUCCESS: 
-          Serial.println("Matching successful !");
-                    Valid_Finger = 1;
-          break;
-        case ACK_NO_USER:
-          Serial.println("Failed: This fingerprint was not found in the library !");
-          break;
-        case ACK_TIMEOUT: 
-          Serial.println("Failed: Time out !");
-          break;  
-        case ACK_GO_OUT:
-          Serial.println("Failed: Please try to place the center of the fingerprint flat to sensor !");
-          break;
-      }
-      
-      //After the matching action is completed, drag RST down to sleep
-      //and continue to wait for your fingers to press
-      digitalWrite(Finger_RST_Pin , LOW);    
+      FingerprintSleepMode();
     }
   }
   }
@@ -379,4 +357,32 @@ void WiFiloop()
       Serial1.begin(115200);
     }
   }
+}
+
+void FingerprintSleepMode()
+{
+      digitalWrite(Finger_RST_Pin , HIGH);    // Pull up the RST to start the module and start matching the fingers
+      delay(1000);   // Wait for module to start
+          
+      Serial.println("Waiting Finger......Please try to place the center of the fingerprint flat to sensor !");
+      switch(VerifyUser())
+      {
+        case ACK_SUCCESS: 
+          Serial.println("Matching successful !");
+          Servoloop(0);
+          break;
+        case ACK_NO_USER:
+          Serial.println("Failed: This fingerprint was not found in the library !");
+          break;
+        case ACK_TIMEOUT: 
+          Serial.println("Failed: Time out !");
+          break;  
+        case ACK_GO_OUT:
+          Serial.println("Failed: Please try to place the center of the fingerprint flat to sensor !");
+          break;
+      }
+      
+      //After the matching action is completed, drag RST down to sleep
+      //and continue to wait for your fingers to press
+      digitalWrite(Finger_RST_Pin , LOW);
 }
