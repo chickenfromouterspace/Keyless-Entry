@@ -41,8 +41,9 @@ void Bluetoothsetup(void);
 void Bluetoothloop(void);
 void Keypadsetup(void);
 void Keypadloop(void);
+void WiFisetup(void);
+void WiFiloop(void);
 
-LiquidCrystal liquid_crystal_display(9,8,7,6,5,4);
 char password[4];
 char initial_password[4],new_password[4];
 int i=0;
@@ -83,11 +84,6 @@ void setup()
  {
     ; // wait for serial port to connect. Needed for native USB port only
  }
- Fingerprintsetup();
- RFIDsetup();
- Bluetoothsetup();
- Keypadsetup();
- Wifisetup();
 }
 
 void loop()
@@ -97,6 +93,7 @@ void loop()
   Serial.println("2 for Fingerprint");
   Serial.println("3 for Bluetooth");
   Serial.println("4 for Keypad");
+  Serial.println("5 for WiFi");
     
   while(Serial.available()<1){
 
@@ -109,6 +106,7 @@ void loop()
     Serial.println("Press the RST button to pick again.");
     if((char)choice == '1' )
     {
+      RFIDsetup();
       while(1)
       {
         RFIDloop();
@@ -116,6 +114,7 @@ void loop()
     }
     else if((char)choice == '2')
     {
+      Fingerprintsetup();
       while(1)
       {
         Fingerprintloop();
@@ -123,6 +122,7 @@ void loop()
     }
     else if((char)choice == '3')
     {
+      Bluetoothsetup();
       while(1)
       {
         Bluetoothloop();
@@ -130,6 +130,7 @@ void loop()
     }
     else if((char)choice == '4')
     {
+      Keypadsetup();
       while(1)
       {
         Keypadloop();
@@ -137,6 +138,7 @@ void loop()
     }
     else if((char)choice == '5')
     {
+      Wifisetup();
       while(1)
       {
         Wifiloop();
@@ -163,7 +165,36 @@ void Fingerprintloop()
   //begin to check if the finger is pressed, and wake up the module and match it
   if(Finger_SleepFlag == 1)
   {
-    Auto_Verify_Finger();
+    if(digitalRead(Finger_WAKE_Pin) == HIGH)   // If you press your finger
+  { 
+    delay(20);      
+    if(digitalRead(Finger_WAKE_Pin) == HIGH)   
+    {
+      digitalWrite(Finger_RST_Pin , HIGH);    // Pull up the RST to start the module and start matching the fingers
+      delay(1000);   // Wait for module to start
+          
+      Serial.println("Waiting Finger......Please try to place the center of the fingerprint flat to sensor !");
+      switch(VerifyUser())
+      {
+        case ACK_SUCCESS: 
+          Serial.println("Matching successful !");
+          break;
+        case ACK_NO_USER:
+          Serial.println("Failed: This fingerprint was not found in the library !");
+          break;
+        case ACK_TIMEOUT: 
+          Serial.println("Failed: Time out !");
+          break;  
+        case ACK_GO_OUT:
+          Serial.println("Failed: Please try to place the center of the fingerprint flat to sensor !");
+          break;
+      }
+      
+      //After the matching action is completed, drag RST down to sleep
+      //and continue to wait for your fingers to press
+      digitalWrite(Finger_RST_Pin , LOW);    
+    }
+  }
   }
 }
 
@@ -177,7 +208,6 @@ void RFIDsetup()
 
 void RFIDloop()
 {
-  buff[6] = {'\0'};
   /* Has a card been detected? */
   if (RC522.isCard())
   {
@@ -186,38 +216,12 @@ void RFIDloop()
     Serial.println("Card detected:");
     for(int i=0;i<5;i++)
     {
-      //Serial.print(RC522.serNum[i],DEC);
-      Serial1.println(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
-      buff[i] = RC522.serNum[i];
+    Serial.print(RC522.serNum[i],DEC);
+    //Serial.print(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
     }
-    str = Serial1.readStringUntil('\n');
+    Servoloop(0);
     Serial.println();
-    for(int i=0;i<5;i++)
-    {
-      Serial.println(buff[i], HEX);
-      Serial.println(buff[i], BIN);
-    }
     Serial.println();
-    for(int i=0;i<5;i++)
-    {
-      Serial.println(usr3[i], HEX);
-      Serial.println(usr3[i], BIN);
-    }
-    Serial.println();
-
-    match = 0;
-    for(int i=0;i<5;i++)
-    {
-      if(buff[i] != usr3[i])
-        break;
-      else
-        match++;
-    }
-    if(match == 5)
-      Servoloop(0);
-
-    Serial.println(match);
-    match = 0;
   }
   Serial.print(buff[0]);
   Serial.print(buff[1]);
@@ -258,24 +262,14 @@ void Bluetoothloop()
   if(Serial.available())
     Serial3.write(Serial.read());
 }
-//----------------------------------------------------------------------------------
-
-
 
 void Keypadsetup()
 {
   pinMode(unlock_motor, OUTPUT);
   pinMode(incorrect_pswd, OUTPUT);
   Serial.println("Keyless Entry");
-  //liquid_crystal_display.begin(16,2);
-  //liquid_crystal_display.print("UCF Knights");
-  //liquid_crystal_display.setCursor(0,1);
-  //liquid_crystal_display.print("Keyless Entry");
   delay(2000);
-  //liquid_crystal_display.clear();
   Serial.println("Enter Password");
-  //liquid_crystal_display.print("Enter Password");
-  //liquid_crystal_display.setCursor(0,1);
   initialpassword();
 }
 
@@ -290,7 +284,6 @@ void Keypadloop()
   {
     password[i++]=key_pressed;
     Serial.println(key_pressed);
-    //liquid_crystal_display.print(key_pressed);
       }
   if(i==4)
   {
@@ -299,38 +292,24 @@ void Keypadloop()
       initial_password[j]=EEPROM.read(j);
     if(!(strncmp(password, initial_password,4)))
     {
-      //liquid_crystal_display.clear();
       Serial.println("Password Accepted");
-      //liquid_crystal_display.print("Pass Accepted");
       digitalWrite(unlock_motor, HIGH);
       Servoloop(0);
 
       delay(2000);
-      //liquid_crystal_display.setCursor(0,1);
       Serial.println("Press # to change");
-      //liquid_crystal_display.print("Pres # to change");
       delay(2000);
-      //liquid_crystal_display.clear();
       Serial.println("Enter Password");
-      //liquid_crystal_display.print("Enter Password:");
-      //liquid_crystal_display.setCursor(0,1);
       i=0;
     }
     else
     {
       digitalWrite(unlock_motor, LOW);
-      //liquid_crystal_display.clear();
       Serial.println("Wrong Password");
-      //liquid_crystal_display.print("Wrong Password");
       digitalWrite(incorrect_pswd, HIGH);
-      //liquid_crystal_display.setCursor(0,1);
       Serial.println("Press # to change");
-      //liquid_crystal_display.print("Pres # to Change");
       delay(2000);
-      //liquid_crystal_display.clear();
       Serial.println("Enter Password");
-      //liquid_crystal_display.print("Enter Password");
-      //liquid_crystal_display.setCursor(0,1);
       i=0;
     }
   }
@@ -339,10 +318,7 @@ void Keypadloop()
 void change()
 {
   int j=0;
-  //liquid_crystal_display.clear();
   Serial.println("Current Password");
-  //liquid_crystal_display.print("Current Password");
-  //liquid_crystal_display.setCursor(0,1);
   while(j<4)
   {
     char key=keypad_key.getKey();
@@ -350,28 +326,20 @@ void change()
     {
       new_password[j++]=key;
       Serial.println(key);
-      //liquid_crystal_display.print(key);
     }
     key=0;
   }
   delay(500);
   if((strncmp(new_password, initial_password, 4)))
   {
-    //liquid_crystal_display.clear();
     Serial.println("Wrong Password");
-    //liquid_crystal_display.print("Wrong Password");
-    //liquid_crystal_display.setCursor(0,1);
     Serial.println("Try Again");
-    //liquid_crystal_display.print("Try Again");
     delay(1000);
   }
   else
   {
     j=0;
-    //liquid_crystal_display.clear();
     Serial.println("New Password");
-    //liquid_crystal_display.print("New Password:");
-    //liquid_crystal_display.setCursor(0,1);
     while(j<4)
     {
       char key=keypad_key.getKey();
@@ -379,19 +347,15 @@ void change()
       {
         initial_password[j]=key;
         Serial.println(key);
-        //liquid_crystal_display.print(key);
         EEPROM.write(j,key);
         j++;
       }
     }
     Serial.println("Password Changed");
-    //liquid_crystal_display.print("Pass Changed");
     delay(1000);
   }
   //liquid_crystal_display.clear();
   Serial.println("Enter Password");
-  //liquid_crystal_display.print("Enter Password");
-  //liquid_crystal_display.setCursor(0,1);
   key_pressed=0;
 }
 
