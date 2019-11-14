@@ -445,7 +445,7 @@ void Auto_Verify_Finger(void)
 		if(digitalRead(Finger_WAKE_Pin) == HIGH)   
 		{
 			digitalWrite(Finger_RST_Pin , HIGH);    // Pull up the RST to start the module and start matching the fingers
-			delay(300);	 // Wait for module to start
+			delay(1000);	 // Wait for module to start
 					
 			Serial.println("Waiting Finger......Please try to place the center of the fingerprint flat to sensor !");
 			switch(VerifyUser())
