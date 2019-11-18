@@ -1,3 +1,4 @@
+
 /*
 PINOUT:
 RC522 MODULE    Uno/Nano     MEGA
@@ -22,6 +23,8 @@ RST             D9           D8
 #include <Servo.h>
 #include "Keypad.h"
 #include "EEPROM.h"
+#include "LiquidCrystal.h"
+#include "Atmega_servo_response.h"
 /* Define the DIO used for the SDA (SS) and RST (reset) pins. */
 #define SDA_DIO 9
 #define RESET_DIO 8
@@ -59,6 +62,9 @@ char hexaKeys[rows][columns] = {
 
 byte row_pins[rows] = {A1, A6, A5, A3};
 byte column_pins[columns] = {A2, A0, A4};
+
+unsigned char buff[6] = {'\0'};
+int match;
 
 Keypad keypad_key = Keypad( makeKeymap(hexaKeys), row_pins, column_pins, rows, columns);
 
@@ -133,10 +139,10 @@ void loop()
     }
     else if((char)choice == '5')
     {
-      WiFisetup();
+      Wifisetup();
       while(1)
       {
-        WiFiloop();
+        Wifiloop();
       }
     }
 }
@@ -196,6 +202,12 @@ void RFIDloop()
     Serial.println();
     Serial.println();
   }
+  Serial.print(buff[0]);
+  Serial.print(buff[1]);
+  Serial.print(buff[2]);
+  Serial.print(buff[3]);
+  Serial.print(buff[4]);
+  Serial.println(buff[5]);
   delay(1000);
 }
 
@@ -331,32 +343,6 @@ void initialpassword(){
     EEPROM.write(j, j+49);
   for(int j=0;j<4;j++)
     initial_password[j]=EEPROM.read(j);
-}
-
-void WiFisetup()
-{
-  Serial1.begin(115200);
-}
-
-void WiFiloop()
-{
-  char x;
-  if(Serial1.available())
-  {
-    x = Serial1.read();
-    Serial.println(x);
-    if(x == '1')
-    {
-      myservo.attach(7);
-      Serial1.end();
-      myservo.write(0);
-      delay(1000);
-      Serial.println("Running.");
-      myservo.detach();
-      x = 0;
-      Serial1.begin(115200);
-    }
-  }
 }
 
 void FingerprintSleepMode()
