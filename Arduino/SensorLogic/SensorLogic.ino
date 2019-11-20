@@ -37,12 +37,17 @@
 #include <Servo.h>
 #include "Keypad.h"
 #include "EEPROM.h"
+#include <SimpleTimer.h>
 
 /* Define the DIO used for the SDA (SS) and RST (reset) pins. */
-#define RST_PIN         5           // Configurable, see typical pin layout above
-#define SS_PIN          53           // Configurable, see typical pin layout above
-#define IRQ_PIN         2           // Configurable, depends on hardware
+#define RST_PIN             8           // Configurable, see typical pin layout above
+#define SS_PIN              53           // Configurable, see typical pin layout above
+#define IRQ_PIN             2           // Configurable, depends on hardware
+#define BLUETOOTH_STATE_PIN 3
+#define LED                 13
+#define SERVO_PIN           5
 
+SimpleTimer timer;
 MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
 
 MFRC522::MIFARE_Key key;
@@ -57,13 +62,12 @@ void Fingerprintloop(void);
 void FingerprintSleepMode(void);
 void RFIDsetup(void);
 void RFIDloop(void);
-void Servoloop(int dir);
 void Bluetoothsetup(void);
 void Bluetoothloop(void);
 void Keypadsetup(void);
 void Keypadloop(void);
-void WiFisetup(void);
-void WiFiloop(void);
+void Unlock_Door(void);
+void Auto_Lock(void);
 
 char password[4];
 char initial_password[4],new_password[4];
@@ -85,15 +89,14 @@ byte column_pins[columns] = {A2, A0, A4};
 
 Keypad keypad_key = Keypad( makeKeymap(hexaKeys), row_pins, column_pins, rows, columns);
 
-Servo myservo;
+Servo servo1;
+Servo servo2;
 
 int pos = 90;
 char choice;
 String str = String(11);
-unsigned char usr0[5] = {0xA2, 0x7D, 0x51, 0x1C, 0x92},
-              usr1[5] = {0x92, 0xA2, 0x3C, 0x1C, 0x10}, 
-              usr2[5] = {0x99, 0x80, 0x6E, 0xA2, 0xD5}, 
-              usr3[5] = {0x49, 0x95, 0x0, 0xA3, 0x7F};
+boolean BLEon = false;
+boolean DoorIsLocked = true;
 
 void setup()
 {
@@ -102,12 +105,17 @@ void setup()
  {
     ; // wait for serial port to connect. Needed for native USB port only
  }
+ Bluetoothsetup();
  RFIDsetup();
+ Keypadsetup();
 }
 
 void loop()
 {
+  timer.run();
+  Bluetoothloop();
   RFIDloop();
+  Keypadloop();
 }
 
 void Fingerprintsetup()
@@ -119,12 +127,14 @@ void Fingerprintsetup()
   pinMode(Finger_WAKE_Pin , INPUT);
   Finger_SoftwareSerial_Init(); 
   Finger_Wait_Until_OK();
+
+  //Enter Sleep Mode
+  digitalWrite(Finger_RST_Pin , LOW);
+  Finger_SleepFlag = 1;
 }
 
 void Fingerprintloop()
-{   
-  Analysis_PC_Command();
-  
+{
   // If in sleep mode, turn on the auto wake-up function of the finger, 
   //begin to check if the finger is pressed, and wake up the module and match it
   if(Finger_SleepFlag == 1)
@@ -140,35 +150,49 @@ void Fingerprintloop()
   }
 }
 
-void Servoloop(int dir)
-{
-  myservo.attach(7);
-  myservo.write(dir);
-  delay(1000);
-  myservo.detach();
-}
-
 void Bluetoothsetup()
 {
-  Serial3.begin(9600);
-  while(!Serial);
+  Serial2.begin(9600);
   Serial.println("AT commands: okay");
+  attachInterrupt(digitalPinToInterrupt(BLUETOOTH_STATE_PIN), Bluetoothcheck, CHANGE);
 }
 
 void Bluetoothloop()
 {
-  //read from the HM-10 and print in the Serial
-  if(Serial3.available())
+  if(BLEon)
   {
-    str = Serial3.readStringUntil('\n');
-    Serial.println(str.length());
-    if(str.compareTo("255,255,255") == 0)
-      Servoloop(0);
-    if(str.compareTo("0,0,0") == 0)
-      Servoloop(180);
+    //read from the HM-10 and print in the Serial
+    if(Serial2.available())
+    {
+      str = Serial2.readString();
+      Serial.print(str);
+      if(str.compareTo("255,255,255\n") == 0)
+      {
+        Serial.println("Yes.");
+        if(DoorIsLocked == true)
+        {
+          DoorIsLocked = false;
+          Unlock_Door();
+        }
+      }
+    }
+    if(Serial.available())
+      Serial2.write(Serial.read());
   }
-  if(Serial.available())
-    Serial3.write(Serial.read());
+}
+
+void Bluetoothcheck()
+{
+  if(digitalRead(3) == 1)
+  {
+    BLEon = true;
+    Serial.println("Bluetooth On.");
+  } 
+  else
+  {
+    BLEon = false;
+    Serial.println("Bluetooth Off.");
+  }
 }
 
 void Keypadsetup()
@@ -176,8 +200,6 @@ void Keypadsetup()
   pinMode(unlock_motor, OUTPUT);
   pinMode(incorrect_pswd, OUTPUT);
   Serial.println("Keyless Entry");
-  delay(2000);
-  Serial.println("Enter Password");
   initialpassword();
 }
 
@@ -201,23 +223,17 @@ void Keypadloop()
     if(!(strncmp(password, initial_password,4)))
     {
       Serial.println("Password Accepted");
-      digitalWrite(unlock_motor, HIGH);
-      Servoloop(0);
-
-      delay(2000);
-      Serial.println("Press # to change");
-      delay(2000);
-      Serial.println("Enter Password");
+      if(DoorIsLocked == true)
+      {
+        DoorIsLocked = false;
+        Unlock_Door();
+      }
       i=0;
     }
     else
     {
-      digitalWrite(unlock_motor, LOW);
       Serial.println("Wrong Password");
       digitalWrite(incorrect_pswd, HIGH);
-      Serial.println("Press # to change");
-      delay(2000);
-      Serial.println("Enter Password");
       i=0;
     }
   }
@@ -242,7 +258,7 @@ void change()
   {
     Serial.println("Wrong Password");
     Serial.println("Try Again");
-    delay(1000);
+    delay(500);
   }
   else
   {
@@ -260,9 +276,7 @@ void change()
       }
     }
     Serial.println("Password Changed");
-    delay(1000);
   }
-  //liquid_crystal_display.clear();
   Serial.println("Enter Password");
   key_pressed=0;
 }
@@ -272,32 +286,6 @@ void initialpassword(){
     EEPROM.write(j, j+49);
   for(int j=0;j<4;j++)
     initial_password[j]=EEPROM.read(j);
-}
-
-void WiFisetup()
-{
-  Serial1.begin(115200);
-}
-
-void WiFiloop()
-{
-  char x;
-  if(Serial1.available())
-  {
-    x = Serial1.read();
-    Serial.println(x);
-    if(x == '1')
-    {
-      myservo.attach(7);
-      Serial1.end();
-      myservo.write(0);
-      delay(1000);
-      Serial.println("Running.");
-      myservo.detach();
-      x = 0;
-      Serial1.begin(115200);
-    }
-  }
 }
 
 void FingerprintSleepMode()
@@ -310,7 +298,6 @@ void FingerprintSleepMode()
       {
         case ACK_SUCCESS: 
           Serial.println("Matching successful !");
-          Servoloop(0);
           break;
         case ACK_NO_USER:
           Serial.println("Failed: This fingerprint was not found in the library !");
@@ -329,8 +316,6 @@ void FingerprintSleepMode()
 }
 
 void RFIDsetup() {
-  Serial.begin(115200); // Initialize serial communications with the PC
-  while (!Serial);      // Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
   SPI.begin();          // Init SPI bus
 
   mfrc522.PCD_Init(); // Init MFRC522 card
@@ -355,9 +340,6 @@ void RFIDsetup() {
   Serial.println(F("End setup"));
 }
 
-/**
- * Main loop.
- */
 void RFIDloop() {
   if (bNewInt) { //new read interrupt
     clearInt(mfrc522);
@@ -367,7 +349,11 @@ void RFIDloop() {
     Serial.print(F("Card UID:"));
     dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
     Serial.println();
-
+    if(DoorIsLocked == true)
+    {
+      DoorIsLocked = false;
+      Unlock_Door();
+    }
     mfrc522.PICC_HaltA();
     delay(100);
   }
@@ -376,8 +362,8 @@ void RFIDloop() {
   // (mfrc522.PCD_WriteRegister(mfrc522.FIFODataReg,mfrc522.PICC_CMD_REQA);)
   activateRec(mfrc522);
   bNewInt = false;
-  delay(500);
-} //loop()
+  delay(125);
+}
 
 /**
  * Helper routine to dump a byte array as hex values to Serial.
@@ -409,4 +395,47 @@ void activateRec(MFRC522 mfrc522) {
  */
 void clearInt(MFRC522 mfrc522) {
   mfrc522.PCD_WriteRegister(mfrc522.ComIrqReg, 0x7F);
+}
+
+void Unlock_Door() 
+{
+  
+  Serial.write("Unlocking Door \n");
+  servo1.attach(SERVO_PIN);                         // attaches the servo to pin on Atmega
+  int pos1;
+
+  //for (pos1 = 0; pos1 <= 20; pos1 += 1) 
+  for (pos1 = 180; pos1 >= 160; pos1 -= 1) 
+  { 
+    // goes from 0 degrees to 180 degrees
+    // in steps of 1 degree
+    servo1.write(pos1);              // tell servo to go to position in variable 'pos'
+    delay(15);                       // waits 15ms for the servo to reach the position
+  }
+  
+  servo1.detach();
+  Serial.println("Door Unlocked");
+  timer.setTimeout(5000, Auto_Lock);
+}
+
+void Auto_Lock() 
+{
+  Serial.print("Locking Door \n");
+  servo2.attach(SERVO_PIN);  // attaches the servo on GIO2 to the servo object
+  int pos2;
+   
+  for (pos2 = 180; pos2 >= 160; pos2 -= 1) 
+  { 
+   
+    servo2.write(pos2);              // tell servo to go to position in variable 'pos'
+    delay(15);  
+    Serial.println(pos2);
+    // waits 15ms for the servo to reach the position
+  }
+  
+  Serial.println("Door Locked");
+  servo2.detach();
+  delay(15);
+  digitalWrite(LED,LOW);             // Turn Off the LED.
+  DoorIsLocked = true;
 }
