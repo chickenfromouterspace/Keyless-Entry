@@ -24,7 +24,6 @@ void setup()
 void loop()
 { 	
 	Analysis_PC_Command();
-	
 	// If in sleep mode, turn on the auto wake-up function of the finger, 
 	//begin to check if the finger is pressed, and wake up the module and match it
 	if(Finger_SleepFlag == 1)

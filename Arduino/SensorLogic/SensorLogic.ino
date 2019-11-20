@@ -1,49 +1,73 @@
-
-/*
-PINOUT:
-RC522 MODULE    Uno/Nano     MEGA
-SDA             D10          D9
-SCK             D13          D52
-MOSI            D11          D51
-MISO            D12          D50
-IRQ             N/A          N/A
-GND             GND          GND
-RST             D9           D8
-3.3V            3.3V         3.3V
-*/
-
+/**
+ * ----------------------------------------------------------------------------
+ * This is a MFRC522 library example; see https://github.com/miguelbalboa/rfid
+ * for further details and other examples.
+ * 
+ * NOTE: The library file MFRC522.h has a lot of useful info. Please read it.
+ * 
+ * Released into the public domain.
+ * ----------------------------------------------------------------------------
+ * Minimal example how to use the interrupts to read the UID of a MIFARE Classic PICC
+ * (= card/tag).
+ * 
+ * 
+ * Typical pin layout used:
+ * -----------------------------------------------------------------------------------------
+ *             MFRC522      Arduino       Arduino   Arduino    Arduino          Arduino
+ *             Reader/PCD   Uno/101       Mega      Nano v3    Leonardo/Micro   Pro Micro
+ * Signal      Pin          Pin           Pin       Pin        Pin              Pin
+ * -----------------------------------------------------------------------------------------
+ * RST/Reset   RST          9             8         D9         RESET/ICSP-5     RST
+ * SPI SS      SDA(SS)      10            53        D10        3                10
+ * IRQ         ?            ?             ?         ?          2                10
+ * SPI MOSI    MOSI         11 / ICSP-4   51        D11        ICSP-4           16
+ * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
+ * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           15
+ * 
+ */
+ 
 /*#define  Finger_RST_Pin     24
 #define  Finger_WAKE_Pin    23*/
 
 /* Include the standard Arduino SPI library */
 #include <SPI.h>
+#include <MFRC522.h>
 /* Include the RFID library */
-#include <RFID.h>
 #include "finger.h"
 #include <Servo.h>
 #include "Keypad.h"
 #include "EEPROM.h"
-#include "LiquidCrystal.h"
-#include "Atmega_servo_response.h"
+#include <SimpleTimer.h>
+
 /* Define the DIO used for the SDA (SS) and RST (reset) pins. */
-#define SDA_DIO 9
-#define RESET_DIO 8
-/* Create an instance of the RFID library */
-RFID RC522(SDA_DIO, RESET_DIO); 
-// read a line from user into buffer, return char count
+#define RST_PIN             8           // Configurable, see typical pin layout above
+#define SS_PIN              53           // Configurable, see typical pin layout above
+#define IRQ_PIN             2           // Configurable, depends on hardware
+#define BLUETOOTH_STATE_PIN 3
+#define LED                 13
+#define SERVO_PIN           5
+
+SimpleTimer timer;
+MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
+
+MFRC522::MIFARE_Key key;
+
+volatile bool bNewInt = false;
+byte regVal = 0x7F;
+void activateRec(MFRC522 mfrc522);
+void clearInt(MFRC522 mfrc522);
 
 void Fingerprintsetup(void);
 void Fingerprintloop(void);
 void FingerprintSleepMode(void);
 void RFIDsetup(void);
 void RFIDloop(void);
-void Servoloop(int dir);
 void Bluetoothsetup(void);
 void Bluetoothloop(void);
 void Keypadsetup(void);
 void Keypadloop(void);
-void WiFisetup(void);
-void WiFiloop(void);
+void Unlock_Door(void);
+void Auto_Lock(void);
 
 char password[4];
 char initial_password[4],new_password[4];
@@ -63,20 +87,16 @@ char hexaKeys[rows][columns] = {
 byte row_pins[rows] = {A1, A6, A5, A3};
 byte column_pins[columns] = {A2, A0, A4};
 
-unsigned char buff[6] = {'\0'};
-int match;
-
 Keypad keypad_key = Keypad( makeKeymap(hexaKeys), row_pins, column_pins, rows, columns);
 
-Servo myservo;
+Servo servo1;
+Servo servo2;
 
 int pos = 90;
 char choice;
 String str = String(11);
-unsigned char usr0[5] = {0xA2, 0x7D, 0x51, 0x1C, 0x92},
-              usr1[5] = {0x92, 0xA2, 0x3C, 0x1C, 0x10}, 
-              usr2[5] = {0x99, 0x80, 0x6E, 0xA2, 0xD5}, 
-              usr3[5] = {0x49, 0x95, 0x0, 0xA3, 0x7F};
+boolean BLEon = false;
+boolean DoorIsLocked = true;
 
 void setup()
 {
@@ -85,66 +105,17 @@ void setup()
  {
     ; // wait for serial port to connect. Needed for native USB port only
  }
+ Bluetoothsetup();
+ RFIDsetup();
+ Keypadsetup();
 }
 
 void loop()
 {
-  Serial.println("Which sensor do you want to use?");
-  Serial.println("1 for RFID");
-  Serial.println("2 for Fingerprint");
-  Serial.println("3 for Bluetooth");
-  Serial.println("4 for Keypad");
-  Serial.println("5 for WiFi");
-    
-  while(Serial.available()<1){
-
-  }
-
-
-    choice = Serial.read();
-    Serial.print("You chose: ");
-    Serial.println(choice);
-    Serial.println("Press the RST button to pick again.");
-    if((char)choice == '1' )
-    {
-      RFIDsetup();
-      while(1)
-      {
-        RFIDloop();
-      }
-    }
-    else if((char)choice == '2')
-    {
-      Fingerprintsetup();
-      while(1)
-      {
-        Fingerprintloop();
-      }
-    }
-    else if((char)choice == '3')
-    {
-      Bluetoothsetup();
-      while(1)
-      {
-        Bluetoothloop();
-      }
-    }
-    else if((char)choice == '4')
-    {
-      Keypadsetup();
-      while(1)
-      {
-        Keypadloop();
-      }
-    }
-    else if((char)choice == '5')
-    {
-      Wifisetup();
-      while(1)
-      {
-        Wifiloop();
-      }
-    }
+  timer.run();
+  Bluetoothloop();
+  RFIDloop();
+  Keypadloop();
 }
 
 void Fingerprintsetup()
@@ -156,12 +127,14 @@ void Fingerprintsetup()
   pinMode(Finger_WAKE_Pin , INPUT);
   Finger_SoftwareSerial_Init(); 
   Finger_Wait_Until_OK();
+
+  //Enter Sleep Mode
+  digitalWrite(Finger_RST_Pin , LOW);
+  Finger_SleepFlag = 1;
 }
 
 void Fingerprintloop()
-{   
-  Analysis_PC_Command();
-  
+{
   // If in sleep mode, turn on the auto wake-up function of the finger, 
   //begin to check if the finger is pressed, and wake up the module and match it
   if(Finger_SleepFlag == 1)
@@ -177,69 +150,49 @@ void Fingerprintloop()
   }
 }
 
-void RFIDsetup()
-{ 
-  /* Enable the SPI interface */
-  SPI.begin(); 
-  /* Initialise the RFID reader */
-  RC522.init();
-}
-
-void RFIDloop()
-{
-  /* Has a card been detected? */
-  if (RC522.isCard())
-  {
-    /* If so then get its serial number */
-    RC522.readCardSerial();
-    Serial.println("Card detected:");
-    for(int i=0;i<5;i++)
-    {
-    Serial.print(RC522.serNum[i],DEC);
-    //Serial.print(RC522.serNum[i],HEX); //to print card detail in Hexa Decimal format
-    }
-    Servoloop(0);
-    Serial.println();
-    Serial.println();
-  }
-  Serial.print(buff[0]);
-  Serial.print(buff[1]);
-  Serial.print(buff[2]);
-  Serial.print(buff[3]);
-  Serial.print(buff[4]);
-  Serial.println(buff[5]);
-  delay(1000);
-}
-
-void Servoloop(int dir)
-{
-  myservo.attach(7);
-  myservo.write(dir);
-  delay(1000);
-  myservo.detach();
-}
-
 void Bluetoothsetup()
 {
   Serial3.begin(9600);
-  while(!Serial);
   Serial.println("AT commands: okay");
+  attachInterrupt(digitalPinToInterrupt(BLUETOOTH_STATE_PIN), Bluetoothcheck, CHANGE);
 }
 
 void Bluetoothloop()
 {
-  //read from the HM-10 and print in the Serial
-  if(Serial3.available())
+  if(BLEon)
   {
-    str = Serial3.readStringUntil('\n');
-    Serial.println(str.length());
-    if(str.compareTo("255,255,255") == 0)
-      Servoloop(0);
-    if(str.compareTo("0,0,0") == 0)
-      Servoloop(180);
+    //read from the HM-10 and print in the Serial
+    if(Serial3.available())
+    {
+      str = Serial3.readString();
+      Serial.print(str);
+      if(str.compareTo("255,255,255\n") == 0)
+      {
+        Serial.println("Yes.");
+        if(DoorIsLocked == true)
+        {
+          DoorIsLocked = false;
+          Unlock_Door();
+        }
+      }
+    }
+    if(Serial.available())
+      Serial3.write(Serial.read());
   }
-  if(Serial.available())
-    Serial3.write(Serial.read());
+}
+
+void Bluetoothcheck()
+{
+  if(digitalRead(3) == 1)
+  {
+    BLEon = true;
+    Serial.println("Bluetooth On.");
+  } 
+  else
+  {
+    BLEon = false;
+    Serial.println("Bluetooth Off.");
+  }
 }
 
 void Keypadsetup()
@@ -247,8 +200,6 @@ void Keypadsetup()
   pinMode(unlock_motor, OUTPUT);
   pinMode(incorrect_pswd, OUTPUT);
   Serial.println("Keyless Entry");
-  delay(2000);
-  Serial.println("Enter Password");
   initialpassword();
 }
 
@@ -272,23 +223,17 @@ void Keypadloop()
     if(!(strncmp(password, initial_password,4)))
     {
       Serial.println("Password Accepted");
-      digitalWrite(unlock_motor, HIGH);
-      Servoloop(0);
-
-      delay(2000);
-      Serial.println("Press # to change");
-      delay(2000);
-      Serial.println("Enter Password");
+      if(DoorIsLocked == true)
+      {
+        DoorIsLocked = false;
+        Unlock_Door();
+      }
       i=0;
     }
     else
     {
-      digitalWrite(unlock_motor, LOW);
       Serial.println("Wrong Password");
       digitalWrite(incorrect_pswd, HIGH);
-      Serial.println("Press # to change");
-      delay(2000);
-      Serial.println("Enter Password");
       i=0;
     }
   }
@@ -313,7 +258,7 @@ void change()
   {
     Serial.println("Wrong Password");
     Serial.println("Try Again");
-    delay(1000);
+    delay(500);
   }
   else
   {
@@ -331,9 +276,7 @@ void change()
       }
     }
     Serial.println("Password Changed");
-    delay(1000);
   }
-  //liquid_crystal_display.clear();
   Serial.println("Enter Password");
   key_pressed=0;
 }
@@ -355,7 +298,6 @@ void FingerprintSleepMode()
       {
         case ACK_SUCCESS: 
           Serial.println("Matching successful !");
-          Servoloop(0);
           break;
         case ACK_NO_USER:
           Serial.println("Failed: This fingerprint was not found in the library !");
@@ -371,4 +313,129 @@ void FingerprintSleepMode()
       //After the matching action is completed, drag RST down to sleep
       //and continue to wait for your fingers to press
       digitalWrite(Finger_RST_Pin , LOW);
+}
+
+void RFIDsetup() {
+  SPI.begin();          // Init SPI bus
+
+  mfrc522.PCD_Init(); // Init MFRC522 card
+
+  /* read and printout the MFRC522 version (valid values 0x91 & 0x92)*/
+  Serial.print(F("Ver: 0x"));
+  byte readReg = mfrc522.PCD_ReadRegister(mfrc522.VersionReg);
+  Serial.println(readReg, HEX);
+  /* setup the IRQ pin*/
+  pinMode(IRQ_PIN, INPUT_PULLUP);
+  /*
+   * Allow the ... irq to be propagated to the IRQ pin
+   * For test purposes propagate the IdleIrq and loAlert
+   */
+  regVal = 0xA0; //rx irq
+  mfrc522.PCD_WriteRegister(mfrc522.ComIEnReg, regVal);
+  bNewInt = false; //interrupt flag
+  /*Activate the interrupt*/
+  attachInterrupt(digitalPinToInterrupt(IRQ_PIN), readCard, FALLING);
+  bNewInt = false;
+
+  Serial.println(F("End setup"));
+}
+
+void RFIDloop() {
+  if (bNewInt) { //new read interrupt
+    clearInt(mfrc522);
+    Serial.print(F("Interrupt. "));
+    mfrc522.PICC_ReadCardSerial(); //read the tag data
+    // Show some details of the PICC (that is: the tag/card)
+    Serial.print(F("Card UID:"));
+    dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
+    Serial.println();
+    if(DoorIsLocked == true)
+    {
+      DoorIsLocked = false;
+      Unlock_Door();
+    }
+    mfrc522.PICC_HaltA();
+    delay(100);
+  }
+
+  // The receiving block needs regular retriggering (tell the tag it should transmit??)
+  // (mfrc522.PCD_WriteRegister(mfrc522.FIFODataReg,mfrc522.PICC_CMD_REQA);)
+  activateRec(mfrc522);
+  bNewInt = false;
+  delay(125);
+}
+
+/**
+ * Helper routine to dump a byte array as hex values to Serial.
+ */
+void dump_byte_array(byte *buffer, byte bufferSize) {
+  for (byte i = 0; i < bufferSize; i++) {
+    Serial.print(buffer[i] < 0x10 ? " 0" : " ");
+    Serial.print(buffer[i], HEX);
+  }
+}
+/**
+ * MFRC522 interrupt serving routine
+ */
+void readCard() {
+  bNewInt = true;
+}
+
+/*
+ * The function sending to the MFRC522 the needed commands to activate the reception
+ */
+void activateRec(MFRC522 mfrc522) {
+  mfrc522.PCD_WriteRegister(mfrc522.FIFODataReg, mfrc522.PICC_CMD_REQA);
+  mfrc522.PCD_WriteRegister(mfrc522.CommandReg, mfrc522.PCD_Transceive);
+  mfrc522.PCD_WriteRegister(mfrc522.BitFramingReg, 0x87);
+}
+
+/*
+ * The function to clear the pending interrupt bits after interrupt serving routine
+ */
+void clearInt(MFRC522 mfrc522) {
+  mfrc522.PCD_WriteRegister(mfrc522.ComIrqReg, 0x7F);
+}
+
+void Unlock_Door() 
+{
+  
+  Serial.write("Unlocking Door \n");
+  servo1.attach(SERVO_PIN);                         // attaches the servo to pin on Atmega
+  int pos1;
+
+  //for (pos1 = 0; pos1 <= 20; pos1 += 1) 
+  for (pos1 = 180; pos1 >= 160; pos1 -= 1) 
+  { 
+    // goes from 0 degrees to 180 degrees
+    // in steps of 1 degree
+    servo1.write(pos1);              // tell servo to go to position in variable 'pos'
+    delay(15);                       // waits 15ms for the servo to reach the position
+  }
+  
+  servo1.detach();
+  Serial.println("Door Unlocked");
+  timer.setTimeout(5000, Auto_Lock);
+}
+
+void Auto_Lock() 
+{
+  Serial.print("Locking Door \n");
+  servo2.attach(SERVO_PIN);  // attaches the servo on GIO2 to the servo object
+  int pos2;
+   
+  for (pos2 = 180; pos2 >= 160; pos2 -= 1) 
+  { 
+   
+    servo2.write(pos2);              // tell servo to go to position in variable 'pos'
+    delay(15);  
+    Serial.println(pos2);
+    // waits 15ms for the servo to reach the position
+  }
+  
+  Serial.println("Door Locked");
+  servo2.detach();
+  delay(15);
+  digitalWrite(LED,LOW);             // Turn Off the LED.
+  DoorIsLocked = true;
 }
