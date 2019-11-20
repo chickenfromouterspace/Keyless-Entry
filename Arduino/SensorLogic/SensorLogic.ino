@@ -45,7 +45,7 @@
 #define IRQ_PIN             2           // Configurable, depends on hardware
 #define BLUETOOTH_STATE_PIN 3
 #define LED                 13
-#define SERVO_PIN           5
+#define ServoPin            5
 
 SimpleTimer timer;
 MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
@@ -66,8 +66,15 @@ void Bluetoothsetup(void);
 void Bluetoothloop(void);
 void Keypadsetup(void);
 void Keypadloop(void);
+void Wifisetup(void);
+void Wifiloop(void);
 void Unlock_Door(void);
 void Auto_Lock(void);
+void recvWithStartEndMarkers(void);
+void showNewData(void);
+void update_doorState(void);
+boolean array_cmp(char *a, char *b, char len_a, char len_b);
+
 
 char password[4];
 char initial_password[4],new_password[4];
@@ -97,6 +104,12 @@ char choice;
 String str = String(11);
 boolean BLEon = false;
 boolean DoorIsLocked = true;
+int doorState; // 1 for locked, 0  for unlocked
+const byte numChars = 32;
+char receivedChars[numChars];
+char unlockdoor[numChars]= "unlockdoor";
+boolean newData = false;
+boolean CheckSerial= true;
 
 void setup()
 {
@@ -105,7 +118,6 @@ void setup()
  {
     ; // wait for serial port to connect. Needed for native USB port only
  }
- Bluetoothsetup();
  RFIDsetup();
  Keypadsetup();
 }
@@ -113,7 +125,6 @@ void setup()
 void loop()
 {
   timer.run();
-  Bluetoothloop();
   RFIDloop();
   Keypadloop();
 }
@@ -341,8 +352,8 @@ void RFIDsetup() {
 }
 
 void RFIDloop() {
-  if (bNewInt) { //new read interrupt
-    clearInt(mfrc522);
+  if (bNewInt == true) { //new read interrupt
+    mfrc522.PCD_WriteRegister(mfrc522.ComIrqReg, 0x7F);
     Serial.print(F("Interrupt. "));
     mfrc522.PICC_ReadCardSerial(); //read the tag data
     // Show some details of the PICC (that is: the tag/card)
@@ -351,6 +362,7 @@ void RFIDloop() {
     Serial.println();
     if(DoorIsLocked == true)
     {
+      Serial.println("RFID");
       DoorIsLocked = false;
       Unlock_Door();
     }
@@ -359,7 +371,7 @@ void RFIDloop() {
   }
 
   // The receiving block needs regular retriggering (tell the tag it should transmit??)
-  // (mfrc522.PCD_WriteRegister(mfrc522.FIFODataReg,mfrc522.PICC_CMD_REQA);)
+  //mfrc522.PCD_WriteRegister(mfrc522.FIFODataReg,mfrc522.PICC_CMD_REQA);
   activateRec(mfrc522);
   bNewInt = false;
   delay(125);
@@ -399,43 +411,139 @@ void clearInt(MFRC522 mfrc522) {
 
 void Unlock_Door() 
 {
-  
+  DoorIsLocked=false;
+  Serial1.write("<unlockdoor>");
   Serial.write("Unlocking Door \n");
-  servo1.attach(SERVO_PIN);                         // attaches the servo to pin on Atmega
+  servo1.attach(ServoPin);                         // attaches the servo to pin 4 on Atmega
   int pos1;
 
   //for (pos1 = 0; pos1 <= 20; pos1 += 1) 
   for (pos1 = 180; pos1 >= 160; pos1 -= 1) 
   { 
-    // goes from 0 degrees to 180 degrees
-    // in steps of 1 degree
     servo1.write(pos1);              // tell servo to go to position in variable 'pos'
     delay(15);                       // waits 15ms for the servo to reach the position
   }
   
   servo1.detach();
   Serial.println("Door Unlocked");
+  doorState=0;
   timer.setTimeout(5000, Auto_Lock);
 }
 
 void Auto_Lock() 
 {
-  Serial.print("Locking Door \n");
-  servo2.attach(SERVO_PIN);  // attaches the servo on GIO2 to the servo object
+  Serial.write("Locking Door \n");
+  servo2.attach(ServoPin);  // attaches the servo on GIO2 to the servo object
   int pos2;
    
-  for (pos2 = 180; pos2 >= 160; pos2 -= 1) 
+  //for (pos2 = 180; pos2 >= 160; pos2 -= 1)
+  for (pos2 = 0; pos2 <= 20; pos2 += 1)  
   { 
-   
     servo2.write(pos2);              // tell servo to go to position in variable 'pos'
     delay(15);  
-    Serial.println(pos2);
-    // waits 15ms for the servo to reach the position
   }
-  
+           
   Serial.println("Door Locked");
   servo2.detach();
   delay(15);
   digitalWrite(LED,LOW);             // Turn Off the LED.
-  DoorIsLocked = true;
+  Serial1.write("<doorlocked>");
+  DoorIsLocked=true;
+ // CheckSerial=true;
+
+  
+}
+
+void recvWithStartEndMarkers() 
+{
+    static boolean recvInProgress = false;
+    static byte ndx = 0;
+    char startMarker = '<';
+    char endMarker = '>';
+    char rc;
+ 
+    while (Serial1.available() > 0 && newData == false) {
+        rc = Serial1.read();
+        //if(CheckSerial==true)
+        
+        if (recvInProgress == true) {
+            if (rc != endMarker) {
+              
+                receivedChars[ndx] = rc;
+                ndx++;
+                if (ndx >= numChars) {
+                    ndx = numChars - 1;
+                }
+            }
+            else {
+                receivedChars[ndx] = '\0'; // terminate the string
+                recvInProgress = false;
+                ndx = 0;
+                newData = true;
+                Serial.println("error");
+            }
+        }
+
+        else if (rc == startMarker) {
+            recvInProgress = true;
+            Serial.println("false statement");
+        }
+        
+    }
+}
+
+void showNewData() 
+{
+    if (newData == true) {
+        Serial.print("This just in ... ");
+        Serial.println(receivedChars);
+        newData = false;
+        //CheckSerial=false;
+        update_doorState();
+    }
+}
+
+void update_doorState()
+{
+  if(array_cmp(receivedChars, unlockdoor,32, 32) == true)
+  {
+    Serial.println("TRUE");
+    if(DoorIsLocked==true)
+    {
+    DoorIsLocked=false;
+    Unlock_Door();
+    }
+  }
+
+  else
+  {
+    Serial.println("FALSEcmp");
+    Serial.println(receivedChars);
+  }
+}
+
+boolean array_cmp(char *a, char *b, char len_a, char len_b){
+     int n;
+
+     // if their lengths are different, return false
+     if (len_a != len_b) return false;
+
+     // test each element to be the same. if not, return false
+     for (n=0;n<len_a;n++) if (a[n]!=b[n]) return false;
+
+     //ok, if we have not returned yet, they are equal :)
+     return true;
+}
+
+void Wifisetup()
+{
+  Serial1.begin(9600);
+  pinMode(LED, OUTPUT); // Sets pin 13 as OUTPUT.
+}
+
+void Wifiloop()
+{
+    timer.run();                                               //Enable timer for autoLock functiom
+    recvWithStartEndMarkers();
+    showNewData();
 }
