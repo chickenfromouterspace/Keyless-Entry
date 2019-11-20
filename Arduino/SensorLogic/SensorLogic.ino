@@ -17,7 +17,7 @@
  *             Reader/PCD   Uno/101       Mega      Nano v3    Leonardo/Micro   Pro Micro
  * Signal      Pin          Pin           Pin       Pin        Pin              Pin
  * -----------------------------------------------------------------------------------------
- * RST/Reset   RST          9             5         D9         RESET/ICSP-5     RST
+ * RST/Reset   RST          9             8         D9         RESET/ICSP-5     RST
  * SPI SS      SDA(SS)      10            53        D10        3                10
  * IRQ         ?            ?             ?         ?          2                10
  * SPI MOSI    MOSI         11 / ICSP-4   51        D11        ICSP-4           16
@@ -152,7 +152,7 @@ void Fingerprintloop()
 
 void Bluetoothsetup()
 {
-  Serial2.begin(9600);
+  Serial3.begin(9600);
   Serial.println("AT commands: okay");
   attachInterrupt(digitalPinToInterrupt(BLUETOOTH_STATE_PIN), Bluetoothcheck, CHANGE);
 }
@@ -162,9 +162,9 @@ void Bluetoothloop()
   if(BLEon)
   {
     //read from the HM-10 and print in the Serial
-    if(Serial2.available())
+    if(Serial3.available())
     {
-      str = Serial2.readString();
+      str = Serial3.readString();
       Serial.print(str);
       if(str.compareTo("255,255,255\n") == 0)
       {
@@ -177,7 +177,7 @@ void Bluetoothloop()
       }
     }
     if(Serial.available())
-      Serial2.write(Serial.read());
+      Serial3.write(Serial.read());
   }
 }
 
