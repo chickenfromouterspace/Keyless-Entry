@@ -18,10 +18,6 @@ void setup()
 	pinMode(Finger_WAKE_Pin , INPUT);
 	Finger_SoftwareSerial_Init();	
 	Finger_Wait_Until_OK();
-
-  //Enter Sleep Mode
-  digitalWrite(Finger_RST_Pin , LOW);
-  Finger_SleepFlag = 1;
 }
 
 
