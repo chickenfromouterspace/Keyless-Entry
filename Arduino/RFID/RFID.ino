@@ -36,6 +36,7 @@ void setup()
   /* Initialise the RFID reader */
   RC522.init();
   pinMode(DoorUnlock, OUTPUT);
+  digitalWrite(DoorUnlock, HIGH);
 }
 
 void loop()
@@ -57,7 +58,7 @@ void loop()
     }
 
     delay(1000);
-    Serial.print("unlock");
+    Serial.println("low");
     digitalWrite(DoorUnlock, LOW);
     timer.setTimeout(5000, Reset);
   }
@@ -65,5 +66,6 @@ void loop()
 
 void Reset()
 {
+  Serial.println("high");
   digitalWrite(DoorUnlock, HIGH);
 }

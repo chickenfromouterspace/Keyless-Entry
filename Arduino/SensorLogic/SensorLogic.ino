@@ -82,6 +82,8 @@ void update_doorState(void);
 void blinkLED(void);
 boolean array_cmp(char *a, char *b, char len_a, char len_b);
 
+unsigned char in;
+
 
 char password[4];
 char initial_password[4],new_password[4];
@@ -197,9 +199,9 @@ void Bluetoothloop()
     //read from the HM-10 and print in the Serial
     if(Serial3.available())
     {
-      str = Serial3.readString();
-      Serial.print(str);
-      if(str.compareTo("255,0,0\n") == 0)
+      in = Serial3.read();
+      Serial.println(in);
+      if(in == 255)
       {
         Serial.println("Yes.");
         if(DoorIsLocked == true)
@@ -673,9 +675,8 @@ void EasyRFIDloop()
 
 void checkRFIDrecv()
 {
-  if((digitalRead(RFID) == LOW)&&(DoorIsLocked==true))
-    {
-      Serial.println("RFID Unlock");
+  if(digitalRead(RFID) == LOW && DoorIsLocked == true)
+  {
       Unlock_Door();
-    }
+  }
 }
