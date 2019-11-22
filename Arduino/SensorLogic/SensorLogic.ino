@@ -18,7 +18,7 @@
  * Signal      Pin          Pin           Pin       Pin        Pin              Pin
  * -----------------------------------------------------------------------------------------
  * RST/Reset   RST          9             8         D9         RESET/ICSP-5     RST
- * SPI SS      SDA(SS)      10            53        D10        3                10
+ * SPI SS      SDA(SS)      10            20        D10        3                10
  * IRQ         ?            ?             ?         ?          2                10
  * SPI MOSI    MOSI         11 / ICSP-4   51        D11        ICSP-4           16
  * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
@@ -42,10 +42,14 @@
 /* Define the DIO used for the SDA (SS) and RST (reset) pins. */
 #define RST_PIN             8           // Configurable, see typical pin layout above
 #define SS_PIN              53           // Configurable, see typical pin layout above
-#define IRQ_PIN             2           // Configurable, depends on hardware
+#define IRQ_PIN             69           // Configurable, depends on hardware
 #define BLUETOOTH_STATE_PIN 3
-#define LED                 13
 #define ServoPin            5
+#define WiFiInt             13
+#define AUTOLOCK            21
+#define greenLED            11
+#define redLED              12
+#define RFID                19
 
 SimpleTimer timer;
 MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
@@ -61,7 +65,9 @@ void Fingerprintsetup(void);
 void Fingerprintloop(void);
 void FingerprintSleepMode(void);
 void RFIDsetup(void);
+void EasyRFIDsetup(void);
 void RFIDloop(void);
+void EasyRFIDloop(void);
 void Bluetoothsetup(void);
 void Bluetoothloop(void);
 void Keypadsetup(void);
@@ -73,6 +79,7 @@ void Auto_Lock(void);
 void recvWithStartEndMarkers(void);
 void showNewData(void);
 void update_doorState(void);
+void blinkLED(void);
 boolean array_cmp(char *a, char *b, char len_a, char len_b);
 
 
@@ -105,7 +112,7 @@ String str = String(11);
 boolean BLEon = false;
 boolean DoorIsLocked = true;
 int doorState; // 1 for locked, 0  for unlocked
-const byte numChars = 32;
+const byte numChars = 13;
 char receivedChars[numChars];
 char unlockdoor[numChars]= "unlockdoor";
 boolean newData = false;
@@ -114,19 +121,34 @@ boolean CheckSerial= true;
 void setup()
 {
  Serial.begin(115200);
+ attachInterrupt(digitalPinToInterrupt(AUTOLOCK), Auto_Lock_timer, FALLING);
+ pinMode(AUTOLOCK, INPUT_PULLUP);
+ pinMode(RFID, INPUT_PULLUP);
+ pinMode(greenLED, OUTPUT);
+ pinMode(redLED, OUTPUT);
+ digitalWrite(greenLED, LOW);
+ digitalWrite(redLED, LOW);
+                                              //Enable timer for autoLock function
+ 
  while (!Serial)
  {
     ; // wait for serial port to connect. Needed for native USB port only
  }
- RFIDsetup();
+ //RFIDsetup();
  Keypadsetup();
+ Wifisetup();
+ Bluetoothsetup();
 }
 
 void loop()
 {
-  timer.run();
-  RFIDloop();
+  timer.run(); 
+  Wifiloop();
+  checkRFIDrecv();
+ // RFIDloop();
   Keypadloop();
+  Bluetoothloop();
+  //timer.setTimeout(300, blinkLED);
 }
 
 void Fingerprintsetup()
@@ -163,7 +185,7 @@ void Fingerprintloop()
 
 void Bluetoothsetup()
 {
-  Serial3.begin(9600);
+  Serial3.begin(115200);
   Serial.println("AT commands: okay");
   attachInterrupt(digitalPinToInterrupt(BLUETOOTH_STATE_PIN), Bluetoothcheck, CHANGE);
 }
@@ -177,7 +199,7 @@ void Bluetoothloop()
     {
       str = Serial3.readString();
       Serial.print(str);
-      if(str.compareTo("255,255,255\n") == 0)
+      if(str.compareTo("255,0,0\n") == 0)
       {
         Serial.println("Yes.");
         if(DoorIsLocked == true)
@@ -194,7 +216,7 @@ void Bluetoothloop()
 
 void Bluetoothcheck()
 {
-  if(digitalRead(3) == 1)
+  if(digitalRead(BLUETOOTH_STATE_PIN) == 1)
   {
     BLEon = true;
     Serial.println("Bluetooth On.");
@@ -225,7 +247,10 @@ void Keypadloop()
   {
     password[i++]=key_pressed;
     Serial.println(key_pressed);
-      }
+    digitalWrite(greenLED,HIGH);
+    delay(20);
+    digitalWrite(greenLED,LOW);
+    }
   if(i==4)
   {
     delay(200);
@@ -245,6 +270,15 @@ void Keypadloop()
     {
       Serial.println("Wrong Password");
       digitalWrite(incorrect_pswd, HIGH);
+      digitalWrite(redLED, HIGH);
+      delay(50);
+      digitalWrite(redLED,LOW);
+      delay(50);
+      digitalWrite(redLED, HIGH);
+      delay(50);
+      digitalWrite(redLED, LOW);
+      delay(50);
+      digitalWrite(redLED, HIGH);
       i=0;
     }
   }
@@ -261,6 +295,9 @@ void change()
     {
       new_password[j++]=key;
       Serial.println(key);
+      digitalWrite(greenLED,HIGH);
+      delay(20);
+      digitalWrite(greenLED,LOW);    
     }
     key=0;
   }
@@ -269,7 +306,15 @@ void change()
   {
     Serial.println("Wrong Password");
     Serial.println("Try Again");
-    delay(500);
+    digitalWrite(redLED, HIGH);
+    delay(50);
+    digitalWrite(redLED,LOW);
+    delay(50);
+    digitalWrite(redLED, HIGH);
+    delay(50);
+    digitalWrite(redLED, LOW);
+    delay(50);
+    digitalWrite(redLED, HIGH);
   }
   else
   {
@@ -283,6 +328,9 @@ void change()
         initial_password[j]=key;
         Serial.println(key);
         EEPROM.write(j,key);
+        digitalWrite(greenLED,HIGH);
+        delay(20);
+        digitalWrite(greenLED,LOW);
         j++;
       }
     }
@@ -333,6 +381,7 @@ void RFIDsetup() {
 
   /* read and printout the MFRC522 version (valid values 0x91 & 0x92)*/
   Serial.print(F("Ver: 0x"));
+  delay(100);
   byte readReg = mfrc522.PCD_ReadRegister(mfrc522.VersionReg);
   Serial.println(readReg, HEX);
   /* setup the IRQ pin*/
@@ -411,7 +460,10 @@ void clearInt(MFRC522 mfrc522) {
 
 void Unlock_Door() 
 {
+  digitalWrite(redLED, LOW);
+  digitalWrite(greenLED, HIGH);
   DoorIsLocked=false;
+  digitalWrite(WiFiInt, LOW);
   Serial1.write("<unlockdoor>");
   Serial.write("Unlocking Door \n");
   servo1.attach(ServoPin);                         // attaches the servo to pin 4 on Atmega
@@ -430,8 +482,29 @@ void Unlock_Door()
   timer.setTimeout(5000, Auto_Lock);
 }
 
+void  Auto_Lock_timer()
+{
+  //debounce button
+   timer.setTimeout(10, Lock_Buttoncheck);
+}
+
+void Lock_Buttoncheck()
+{
+  Serial.println("Debounce.");
+  if((digitalRead(AUTOLOCK))==LOW)
+  {
+    detachInterrupt(digitalPinToInterrupt(AUTOLOCK));
+    Auto_Lock();
+    delay(2000);
+    attachInterrupt(digitalPinToInterrupt(AUTOLOCK), Auto_Lock_timer, FALLING);
+  }
+}
+
+
 void Auto_Lock() 
 {
+  digitalWrite(greenLED, LOW);
+  digitalWrite(redLED, HIGH);
   Serial.write("Locking Door \n");
   servo2.attach(ServoPin);  // attaches the servo on GIO2 to the servo object
   int pos2;
@@ -446,9 +519,9 @@ void Auto_Lock()
   Serial.println("Door Locked");
   servo2.detach();
   delay(15);
-  digitalWrite(LED,LOW);             // Turn Off the LED.
   Serial1.write("<doorlocked>");
   DoorIsLocked=true;
+  digitalWrite(WiFiInt, HIGH);
  // CheckSerial=true;
 
   
@@ -505,7 +578,7 @@ void showNewData()
 
 void update_doorState()
 {
-  if(array_cmp(receivedChars, unlockdoor,32, 32) == true)
+  if(array_cmp(receivedChars, unlockdoor,13, 13) == true)
   {
     Serial.println("TRUE");
     if(DoorIsLocked==true)
@@ -537,13 +610,72 @@ boolean array_cmp(char *a, char *b, char len_a, char len_b){
 
 void Wifisetup()
 {
-  Serial1.begin(9600);
-  pinMode(LED, OUTPUT); // Sets pin 13 as OUTPUT.
+  Serial1.begin(115200);
+  pinMode(WiFiInt, OUTPUT);
+  digitalWrite(WiFiInt, HIGH);
 }
 
 void Wifiloop()
 {
-    timer.run();                                               //Enable timer for autoLock functiom
+    //timer.run();                                               //Enable timer for autoLock functiom
     recvWithStartEndMarkers();
     showNewData();
+}
+
+void blinkLED()
+{
+  if(DoorIsLocked==true)
+  {
+    digitalWrite(greenLED, LOW);
+    digitalWrite(redLED, CHANGE);
+  }
+
+  if(DoorIsLocked==false)
+  {
+    digitalWrite(redLED, LOW);
+    digitalWrite(greenLED, CHANGE);
+  }
+}
+
+void EasyRFIDsetup()
+{
+  SPI.begin();
+  mfrc522.PCD_Init();
+}
+
+void EasyRFIDloop()
+ {
+
+  // Prepare key - all keys are set to FFFFFFFFFFFFh at chip delivery from the factory.
+  MFRC522::MIFARE_Key key;
+  for (byte i = 0; i < 6; i++) key.keyByte[i] = 0xFF;
+
+  // Look for new cards
+  if ( ! mfrc522.PICC_IsNewCardPresent()) {
+    return;
+  }
+
+  // Select one of the cards
+  if ( ! mfrc522.PICC_ReadCardSerial())    return;
+
+  Serial.print("Card UID:");    //Dump UID
+  for (byte i = 0; i < mfrc522.uid.size; i++) {
+    Serial.print(mfrc522.uid.uidByte[i]);
+    Serial.println(" ");
+  
+    //          Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
+    //          Serial.print(mfrc522.uid.uidByte[i], HEX);
+  }
+    delay(2000);
+    Serial.print("unlock"); 
+    Unlock_Door();  
+} 
+
+void checkRFIDrecv()
+{
+  if((digitalRead(RFID) == LOW)&&(DoorIsLocked==true))
+    {
+      Serial.println("RFID Unlock");
+      Unlock_Door();
+    }
 }
