@@ -49,7 +49,7 @@
 #define AUTOLOCK            21
 #define greenLED            11
 #define redLED              12
-#define RFID                19
+#define RFID                20
 
 SimpleTimer timer;
 MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
