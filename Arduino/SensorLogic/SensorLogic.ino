@@ -118,6 +118,8 @@ char unlockdoor[numChars]= "unlockdoor";
 boolean newData = false;
 boolean CheckSerial= true;
 
+boolean AppActive = false;
+
 void setup()
 {
  Serial.begin(115200);
@@ -134,7 +136,6 @@ void setup()
  {
     ; // wait for serial port to connect. Needed for native USB port only
  }
- //RFIDsetup();
  Keypadsetup();
  Wifisetup();
  Bluetoothsetup();
@@ -145,10 +146,13 @@ void loop()
   timer.run(); 
   Wifiloop();
   checkRFIDrecv();
- // RFIDloop();
   Keypadloop();
   Bluetoothloop();
-  //timer.setTimeout(300, blinkLED);
+
+  if(AppActive)
+    Serial.println("Phone App is active.");
+  while(AppActive)
+    choices();
 }
 
 void Fingerprintsetup()
@@ -678,4 +682,38 @@ void checkRFIDrecv()
       Serial.println("RFID Unlock");
       Unlock_Door();
     }
+}
+
+void choices()
+{
+  char choice;
+  timer.run();
+
+  if(choice == '1')
+  {
+    Keypadsetup();
+    while(choice == '1')
+    {
+      Keypadloop();
+    }    
+  }
+  else if(choice == '2')
+  {
+    Bluetoothsetup();
+    while(choice == '2')
+    {
+      Bluetoothloop();
+    }
+  }
+  else if(choice == '3')
+  {
+    while(choice == '3')
+    {
+      checkRFIDrecv();
+    }
+  }
+  else if(choice == '0')
+  {
+    AppActive = false;
+  }
 }
