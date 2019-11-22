@@ -80,6 +80,8 @@ void recvWithStartEndMarkers(void);
 void showNewData(void);
 void update_doorState(void);
 void blinkLED(void);
+void choices(void);
+
 boolean array_cmp(char *a, char *b, char len_a, char len_b);
 
 
@@ -223,11 +225,13 @@ void Bluetoothcheck()
   if(digitalRead(BLUETOOTH_STATE_PIN) == 1)
   {
     BLEon = true;
+    AppActive = true;
     Serial.println("Bluetooth On.");
   } 
   else
   {
     BLEon = false;
+    AppActive = false;
     Serial.println("Bluetooth Off.");
   }
 }
@@ -689,30 +693,43 @@ void choices()
   char choice;
   timer.run();
 
-  if(choice == '1')
+  if(Serial3.available())
+  {
+    choice = Serial3.read();
+    Serial.print("You chose: ");
+    Serial.println(choice);
+  }
+
+  if(choice == 'K')
   {
     Keypadsetup();
-    while(choice == '1')
+    while(choice == 'K')
     {
+      if(AppActive == false)
+        break;
       Keypadloop();
     }    
   }
-  else if(choice == '2')
+  else if(choice == 'B')
   {
     Bluetoothsetup();
-    while(choice == '2')
+    while(choice == 'B')
     {
+      if(AppActive == false)
+        break;
       Bluetoothloop();
     }
   }
-  else if(choice == '3')
+  else if(choice == 'R')
   {
-    while(choice == '3')
+    while(choice == 'R')
     {
+      if(AppActive == false)
+        break;
       checkRFIDrecv();
     }
   }
-  else if(choice == '0')
+  else if(choice == 'X')
   {
     AppActive = false;
   }
